@@ -3,10 +3,6 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  define: {
-    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify("https://dummy.supabase.co"),
-    "import.meta.env.VITE_SUPABASE_KEY": JSON.stringify("dummy-key"),
-  },
   test: {
     environment: "jsdom",
     globals: true,
