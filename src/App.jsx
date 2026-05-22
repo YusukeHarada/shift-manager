@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { fetchShifts, saveShift } from "./supabase";
+import { exportToICal } from "./ical";
 
 const SHIFT_TYPES = [
   { key: "早",  label: "早番",     color: "#4A90D9", bg: "#E8F4FD" },
@@ -25,26 +27,6 @@ function getFirstDayOfWeek(year, month) {
 
 function getShiftInfo(key) {
   return SHIFT_TYPES.find(s => s.key === key) || SHIFT_TYPES[SHIFT_TYPES.length - 1];
-}
-
-// localStorage のキー
-function storageKey(year, month) {
-  return `shifts_${year}_${String(month).padStart(2, "0")}`;
-}
-
-function loadShifts(year, month) {
-  try {
-    const raw = localStorage.getItem(storageKey(year, month));
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveShifts(year, month, shifts) {
-  try {
-    localStorage.setItem(storageKey(year, month), JSON.stringify(shifts));
-  } catch {}
 }
 
 // シフトバッジ
@@ -216,22 +198,47 @@ export default function App() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
-  const [shifts, setShiftsState] = useState({});
+  const [shifts, setShifts] = useState({});
   const [view, setView] = useState("calendar");
   const [picker, setPicker] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  // 月が変わったらlocalStorageから読み込み
-  useEffect(() => {
-    setShiftsState(loadShifts(year, month));
+  // 月が変わったらSupabaseから読み込み
+  const loadShifts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchShifts(year, month);
+      setShifts(data);
+    } catch (e) {
+      setError("データの読み込みに失敗しました");
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, [year, month]);
 
-  const setShifts = (newShifts) => {
-    setShiftsState(newShifts);
-    saveShifts(year, month, newShifts);
-  };
+  useEffect(() => {
+    loadShifts();
+  }, [loadShifts]);
 
-  const handleShiftSelect = (day, shiftKey) => {
-    setShifts({ ...shifts, [String(day)]: shiftKey });
+  // シフトを選択したらSupabaseに保存
+  const handleShiftSelect = async (day, shiftKey) => {
+    // 画面は即時更新
+    setShifts(prev => ({ ...prev, [String(day)]: shiftKey }));
+    setSaving(true);
+    try {
+      await saveShift(year, month, day, shiftKey);
+    } catch (e) {
+      setError("保存に失敗しました");
+      // 失敗したら元に戻す
+      setShifts(prev => ({ ...prev, [String(day)]: shifts[String(day)] ?? "" }));
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const prevMonth = () => {
@@ -243,7 +250,7 @@ export default function App() {
     else setMonth(m => m + 1);
   };
 
-  // 次の出勤日を探す
+  // 次の出勤日
   let nextWork = null;
   if (today.getFullYear() === year && today.getMonth() + 1 === month) {
     const days = getDaysInMonth(year, month);
@@ -266,8 +273,24 @@ export default function App() {
         color: "#fff", padding: "16px 16px 14px",
         boxShadow: "0 4px 20px rgba(0,0,0,0.3)"
       }}>
-        <div style={{ fontSize: "11px", color: "#7fb3d3", marginBottom: "2px" }}>シフト管理</div>
-        <div style={{ fontSize: "20px", fontWeight: "800", marginBottom: "14px" }}>原田 真依</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+          <div>
+            <div style={{ fontSize: "11px", color: "#7fb3d3", marginBottom: "2px" }}>シフト管理</div>
+            <div style={{ fontSize: "20px", fontWeight: "800" }}>原田 真依</div>
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {saving && <span style={{ fontSize: "11px", color: "#7fb3d3" }}>保存中...</span>}
+            <button onClick={() => exportToICal(year, month, shifts)} style={{
+              background: "#1ABC9C", border: "none", borderRadius: "10px",
+              color: "#fff", padding: "8px 12px", cursor: "pointer",
+              fontSize: "12px", fontWeight: "700"
+            }}>
+              📅 カレンダー出力
+            </button>
+          </div>
+        </div>
+
+        {/* 月ナビ */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "20px" }}>
           <button onClick={prevMonth} style={{
             background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "8px",
@@ -284,59 +307,84 @@ export default function App() {
       </div>
 
       <div style={{ padding: "14px 12px" }}>
-        {/* 次の出勤 */}
-        {nextWork && (
+        {/* エラー表示 */}
+        {error && (
           <div style={{
-            background: "#fff", borderRadius: "12px", padding: "12px 16px",
-            marginBottom: "14px", border: "1.5px solid #E8F4FD",
-            display: "flex", alignItems: "center", gap: "12px",
-            boxShadow: "0 2px 10px rgba(74,144,217,0.1)"
+            background: "#FDEDEC", border: "1.5px solid #e74c3c", borderRadius: "10px",
+            padding: "10px 14px", marginBottom: "12px", fontSize: "13px", color: "#e74c3c",
+            display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
-            <span style={{ fontSize: "22px" }}>📅</span>
-            <div>
-              <div style={{ fontSize: "11px", color: "#888", marginBottom: "2px" }}>次の出勤</div>
-              <div style={{ fontSize: "15px", fontWeight: "700", color: "#1a1a2e", display: "flex", alignItems: "center", gap: "8px" }}>
-                {month}月{nextWork.day}日
-                <ShiftBadge shiftKey={nextWork.shift} size="md" />
-              </div>
-            </div>
+            {error}
+            <button onClick={() => setError(null)} style={{
+              background: "none", border: "none", cursor: "pointer", color: "#e74c3c", fontSize: "16px"
+            }}>×</button>
           </div>
         )}
 
-        {/* 集計 */}
-        <SummaryCards shifts={shifts} />
+        {/* ローディング */}
+        {loading && (
+          <div style={{
+            textAlign: "center", padding: "30px", color: "#888", fontSize: "14px"
+          }}>読み込み中...</div>
+        )}
 
-        {/* ビュー切替 */}
-        <div style={{
-          display: "flex", background: "#fff", borderRadius: "10px",
-          padding: "3px", marginBottom: "14px",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.08)"
-        }}>
-          {[["calendar", "📅 カレンダー"], ["list", "📋 リスト"]].map(([v, label]) => (
-            <button key={v} onClick={() => setView(v)} style={{
-              flex: 1, padding: "8px", border: "none", borderRadius: "8px",
-              background: view === v ? "#4A90D9" : "transparent",
-              color: view === v ? "#fff" : "#666",
-              cursor: "pointer", fontSize: "13px", fontWeight: "600",
-              transition: "all 0.2s"
-            }}>{label}</button>
-          ))}
-        </div>
+        {!loading && (
+          <>
+            {/* 次の出勤 */}
+            {nextWork && (
+              <div style={{
+                background: "#fff", borderRadius: "12px", padding: "12px 16px",
+                marginBottom: "14px", border: "1.5px solid #E8F4FD",
+                display: "flex", alignItems: "center", gap: "12px",
+                boxShadow: "0 2px 10px rgba(74,144,217,0.1)"
+              }}>
+                <span style={{ fontSize: "22px" }}>📅</span>
+                <div>
+                  <div style={{ fontSize: "11px", color: "#888", marginBottom: "2px" }}>次の出勤</div>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "#1a1a2e", display: "flex", alignItems: "center", gap: "8px" }}>
+                    {month}月{nextWork.day}日
+                    <ShiftBadge shiftKey={nextWork.shift} size="md" />
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {/* メインビュー */}
-        <div style={{
-          background: "#fff", borderRadius: "14px", padding: "14px",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.06)"
-        }}>
-          {view === "calendar"
-            ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={setPicker} />
-            : <ListView year={year} month={month} shifts={shifts} onDayClick={setPicker} />
-          }
-        </div>
+            {/* 集計 */}
+            <SummaryCards shifts={shifts} />
 
-        <p style={{ textAlign: "center", fontSize: "11px", color: "#bbb", marginTop: "12px" }}>
-          日付をタップしてシフトを入力できます
-        </p>
+            {/* ビュー切替 */}
+            <div style={{
+              display: "flex", background: "#fff", borderRadius: "10px",
+              padding: "3px", marginBottom: "14px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.08)"
+            }}>
+              {[["calendar", "📅 カレンダー"], ["list", "📋 リスト"]].map(([v, label]) => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  flex: 1, padding: "8px", border: "none", borderRadius: "8px",
+                  background: view === v ? "#4A90D9" : "transparent",
+                  color: view === v ? "#fff" : "#666",
+                  cursor: "pointer", fontSize: "13px", fontWeight: "600",
+                  transition: "all 0.2s"
+                }}>{label}</button>
+              ))}
+            </div>
+
+            {/* メインビュー */}
+            <div style={{
+              background: "#fff", borderRadius: "14px", padding: "14px",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.06)"
+            }}>
+              {view === "calendar"
+                ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={setPicker} />
+                : <ListView year={year} month={month} shifts={shifts} onDayClick={setPicker} />
+              }
+            </div>
+
+            <p style={{ textAlign: "center", fontSize: "11px", color: "#bbb", marginTop: "12px" }}>
+              日付をタップしてシフトを入力できます
+            </p>
+          </>
+        )}
       </div>
 
       {/* シフトピッカー */}
