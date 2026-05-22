@@ -3,8 +3,9 @@ import { fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 
 const SHIFT_TYPES = [
-  { key: "早",  label: "早番",     color: "#4A90D9", bg: "#E8F4FD" },
+  { key: "日",  label: "日勤",     color: "#27AE60", bg: "#E9F7EF" },
   { key: "早1", label: "早番1",    color: "#2E7BC4", bg: "#D6EAF8" },
+  { key: "早",  label: "早番",     color: "#4A90D9", bg: "#E8F4FD" },
   { key: "遅",  label: "遅番",     color: "#E67E22", bg: "#FEF0E3" },
   { key: "夜",  label: "夜勤",     color: "#6C3483", bg: "#F4ECF7" },
   { key: "明",  label: "明け休み", color: "#8E44AD", bg: "#EDE0F5" },
