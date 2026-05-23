@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import * as supabaseMock from "../__mocks__/supabase";
 import * as icalMock from "../__mocks__/ical";
 
-// モジュールをモックに差し替え
 vi.mock("../supabase", () => supabaseMock);
 vi.mock("../ical", () => icalMock);
 
@@ -62,7 +61,6 @@ describe("App コンポーネント", () => {
 
   it("カレンダービューとリストビューの切替ボタンが存在する", async () => {
     await renderAndWait();
-    // 「📅 カレンダー」ボタン（切替）と「📅 カレンダー出力」ボタンが両方存在する
     const calBtns = screen.getAllByText(/カレンダー/);
     expect(calBtns.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/リスト/)).toBeInTheDocument();
@@ -110,34 +108,69 @@ describe("App コンポーネント", () => {
     expect(screen.getByText(/日のシフトを選択/)).toBeInTheDocument();
   });
 
-  it("シフト選択ポップアップに全シフト種別が表示される", async () => {
+  it("ポップアップにベースシフト種別が表示される", async () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
+    expect(screen.getByText("日勤")).toBeInTheDocument();
     expect(screen.getByText("早番")).toBeInTheDocument();
     expect(screen.getByText("遅番")).toBeInTheDocument();
     expect(screen.getByText("夜勤")).toBeInTheDocument();
     expect(screen.getByText("明け休み")).toBeInTheDocument();
-    expect(screen.getByText("当直")).toBeInTheDocument();
     expect(screen.getByText("休み")).toBeInTheDocument();
+  });
+
+  it("ポップアップにαオプションが表示される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getAllByText("1")[0]);
     expect(screen.getByText("残業")).toBeInTheDocument();
     expect(screen.getByText("会議")).toBeInTheDocument();
   });
 
-  it("シフトを選択するとポップアップが閉じる", async () => {
+  it("ポップアップに保存ボタンが存在する", async () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
-    fireEvent.click(screen.getByText("早番"));
+    expect(screen.getByText("保存")).toBeInTheDocument();
+  });
+
+  it("保存ボタンをクリックするとポップアップが閉じる", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getAllByText("1")[0]);
+    fireEvent.click(screen.getByText("保存"));
     await waitFor(() => {
       expect(screen.queryByText(/日のシフトを選択/)).not.toBeInTheDocument();
     });
   });
 
-  it("シフト選択後にSupabaseのsaveShiftが呼ばれる", async () => {
+  it("保存後にSupabaseのsaveShiftが呼ばれる", async () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
     fireEvent.click(screen.getByText("早番"));
+    fireEvent.click(screen.getByText("保存"));
     await waitFor(() => {
-      expect(supabaseMock.saveShift).toHaveBeenCalled();
+      expect(supabaseMock.saveShift).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        1,
+        "早",
+        expect.any(Array)
+      );
+    });
+  });
+
+  it("αオプションを複数選択できる", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getAllByText("1")[0]);
+    fireEvent.click(screen.getByText("残業"));
+    fireEvent.click(screen.getByText("会議"));
+    fireEvent.click(screen.getByText("保存"));
+    await waitFor(() => {
+      expect(supabaseMock.saveShift).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        1,
+        expect.any(String),
+        expect.arrayContaining(["残", "会"])
+      );
     });
   });
 
@@ -145,6 +178,7 @@ describe("App コンポーネント", () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
     fireEvent.click(screen.getByText("早番"));
+    fireEvent.click(screen.getByText("保存"));
     await waitFor(() => {
       expect(screen.getAllByText("早番").length).toBeGreaterThan(0);
     });
@@ -168,5 +202,16 @@ describe("App コンポーネント", () => {
     await renderAndWait();
     fireEvent.click(screen.getByText(/カレンダー出力/));
     expect(icalMock.exportToICal).toHaveBeenCalled();
+  });
+
+  it("Supabaseにデータがある場合シフトが表示される", async () => {
+    supabaseMock.fetchShifts.mockResolvedValue({
+      "1": { base: "早", alpha: [] },
+      "2": { base: "夜", alpha: ["残"] },
+    });
+    await renderAndWait();
+    // カレンダーに早番・夜勤のバッジが表示される
+    expect(screen.getAllByText("早").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("夜").length).toBeGreaterThan(0);
   });
 });
