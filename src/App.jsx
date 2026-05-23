@@ -10,7 +10,7 @@ const BASE_SHIFTS = [
   { key: "遅",  label: "遅番",     color: "#E67E22", bg: "#FEF0E3", start: "10:15", end: "19:00" },
   { key: "夜",  label: "夜勤",     color: "#6C3483", bg: "#F4ECF7", start: "16:30", end: "翌9:30" },
   { key: "明",  label: "明け休み", color: "#8E44AD", bg: "#EDE0F5" },
-  { key: "当",  label: "当直",     color: "#1ABC9C", bg: "#E8F8F5", start: "19:30", end: "翌7:00" },
+  { key: "当",  label: "当直",     color: "#1ABC9C", bg: "#E8F8F5", start: "19:00", end: "翌7:00" },
   { key: "休",  label: "休み",     color: "#95A5A6", bg: "#F2F3F4" },
   { key: "",    label: "未入力",   color: "#BDC3C7", bg: "#FAFAFA" },
 ];
