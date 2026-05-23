@@ -19,10 +19,13 @@ const BASE_SHIFTS = [
 const ALPHA_TYPES = [
   { key: "残", label: "残業", color: "#E74C3C", bg: "#FDEDEC" },
   { key: "会", label: "会議", color: "#F39C12", bg: "#FEF9E7" },
-  { key: "α",  label: "当直", color: "#9B59B6", bg: "#F5EEF8" },
+  { key: "当", label: "当直", color: "#9B59B6", bg: "#F5EEF8" },
 ];
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+// const UNAME = import.meta.env.USER_NAME;
+const UNAME = "原田";
 
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
@@ -375,7 +378,7 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
           <div>
             <div style={{ fontSize: "11px", color: "#7fb3d3", marginBottom: "2px" }}>シフト管理</div>
-            <div style={{ fontSize: "20px", fontWeight: "800" }}>原田 真依</div>
+            <div style={{ fontSize: "20px", fontWeight: "800" }}>{UNAME}</div>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             {saving && <span style={{ fontSize: "11px", color: "#7fb3d3" }}>保存中...</span>}

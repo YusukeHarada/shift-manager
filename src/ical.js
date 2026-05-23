@@ -14,7 +14,7 @@ const BASE_LABELS = {
 const ALPHA_LABELS = {
   "残": "残業",
   "会": "会議",
-  "α":  "当直",
+  "当": "当直",
 };
 
 function formatDate(year, month, day) {
