@@ -4,16 +4,20 @@
 
 ## 機能
 
-- 月次シフトの手動入力（9種類のシフト区分）
+- 月次シフトの手動入力（ベースシフト8種類 ＋ αオプション複数選択）
 - カレンダー表示 / リスト表示の切り替え
 - シフト種別ごとの集計
 - 次の出勤日の表示
 - 月をまたいだナビゲーション
+- Googleカレンダー向け iCal（.ics）エクスポート
 
 ## シフト区分
 
+### ベースシフト
+
 | キー | 意味 | 紙面の記号 |
 |------|------|-----------|
+| 日 | 日勤 | 日 |
 | 早 | 早番 | 早 |
 | 早1 | 早番1 | 早1 |
 | 遅 | 遅番 | 遅 |
@@ -21,16 +25,22 @@
 | 明 | 明け休み | ●（黒丸） |
 | 当 | 当直 | ○（白丸） |
 | 休 | 休み | × |
-| α | 残業 | α |
-| 会 | 会議 | 会 |
+
+### αオプション（ベースシフトに追加可・複数選択可）
+
+| キー | 意味 |
+|------|------|
+| 残 | 残業 |
+| 会 | 会議 |
+| 当 | 当直 |
 
 ## 技術スタック
 
 - React 18
 - Vite 5
-- Vitest（テスト）
+- Supabase（PostgreSQL）
+- Vitest / @testing-library/react（テスト）
 - Vercel（ホスティング）
-- Supabase（データベース、導入予定）
 
 ## セットアップ
 
@@ -48,6 +58,17 @@ npm test
 npm run build
 ```
 
+## 環境変数
+
+プロジェクトルートに `.env.local` を作成してください（Gitには含まれません）。
+
+```
+VITE_SUPABASE_URL=https://ygiaiwarujawjacrbseg.supabase.co
+VITE_SUPABASE_KEY=sb_publishable_...
+```
+
+Vercelにデプロイする場合は、管理画面の `Settings` → `Environment Variables` に同じキーを設定してください。
+
 ## デプロイ
 
 Vercel に GitHub リポジトリを連携してデプロイします。
@@ -55,19 +76,14 @@ Vercel に GitHub リポジトリを連携してデプロイします。
 1. https://vercel.com にアクセスしてGitHubでログイン
 2. 「Add New Project」で本リポジトリを選択
 3. 設定はデフォルトのまま「Deploy」
-
-## 環境変数（Supabase 導入後に必要）
-
-```
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
+4. 環境変数を設定して「Redeploy」
 
 ## ロードマップ
 
 - [x] 手動入力・カレンダー表示・集計
-- [ ] Supabase によるデータ永続化
-- [ ] Google カレンダー連携（iCalエクスポート）
+- [x] Supabase によるデータ永続化
+- [x] iCal エクスポート（Googleカレンダー連携）
+- [ ] Google Calendar API による自動同期
 - [ ] シフト表写真からのAI自動入力
 
 ## ライセンス
