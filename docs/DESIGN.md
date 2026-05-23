@@ -28,16 +28,18 @@
 
 **ベースシフト（8種類）**
 
-| キー | 表示名 | 紙面の記号 |
-|------|--------|-----------|
-| 日 | 日勤 | 日 |
-| 早 | 早番 | 早 |
-| 早1 | 早番1 | 早1 |
-| 遅 | 遅番 | 遅 |
-| 夜 | 夜勤 | 半月記号 |
-| 明 | 明け休み | ●（黒丸） |
-| 当 | 当直 | ○（白丸） |
-| 休 | 休み | × |
+| キー | 表示名 | 紙面の記号 | 開始 | 終了 |
+|------|--------|-----------|------|------|
+| 日 | 日勤 | 日 | 8:45 | 17:30 |
+| 早1 | 早番1 | 早1 | 7:00 | 15:45 |
+| 早 | 早番 | 早 | 7:30 | 16:15 |
+| 遅 | 遅番 | 遅 | 10:15 | 19:00 |
+| 夜 | 夜勤 | 半月記号 | 16:30 | 翌9:30 |
+| 明 | 明け休み | ●（黒丸） | - | - |
+| 当 | 当直 | ○（白丸） | 未定 | 未定 |
+| 休 | 休み | × | - | - |
+
+`start` / `end` フィールドを持つシフトのみ、勤務時間表モーダルに表示される。
 
 **αオプション（複数選択可）**
 
@@ -75,6 +77,14 @@
 
 - 当月・今日以降で最初の「休み以外」のシフトを表示
 - 他の月を表示中は非表示
+
+#### 勤務時間表モーダル
+
+- ヘッダーの「勤務時間表」ボタンをタップして開く
+- `start` / `end` フィールドを持つシフト区分のみ一覧表示
+- 夜勤の終了は翌日をまたぐため「翌9:30」と表記
+- 当直は時間未定のためモーダルに表示しない
+- オーバーレイまたは「閉じる」ボタンで閉じる
 
 #### iCal エクスポート
 
@@ -145,14 +155,15 @@ create table shifts (
 
 ```
 App
-├── ヘッダー（ユーザ名・月ナビ・カレンダー出力ボタン）
+├── ヘッダー（ユーザ名・月ナビ・勤務時間表ボタン・カレンダー出力ボタン）
 ├── エラー表示
 ├── ローディング表示
 ├── 次の出勤カード
 ├── SummaryCards（集計）
 ├── ビュー切替ボタン
 ├── CalendarView または ListView
-└── ShiftPicker（ポップアップ）
+├── WorkTimeModal（勤務時間表モーダル）
+└── ShiftPicker（シフト選択ポップアップ）
      ├── ベースシフト選択
      ├── αオプション選択（複数可）
      └── 保存ボタン
@@ -165,7 +176,9 @@ App
 | ListView | 日付リスト表示 |
 | ShiftPicker | シフト選択ポップアップ（ベース＋α） |
 | ShiftBadge | シフト種別の色付きバッジ |
+| AlphaBadge | αオプションの色付きバッジ |
 | SummaryCards | 種別ごとの件数カード |
+| WorkTimeModal | 勤務時間表のモーダルダイアログ |
 
 ---
 
@@ -181,6 +194,7 @@ App
 | loading | boolean | false | データ読み込み中フラグ |
 | saving | boolean | false | データ保存中フラグ |
 | error | string \| null | null | エラーメッセージ |
+| showWorkTable | boolean | false | 勤務時間表モーダルの表示フラグ |
 
 ---
 
@@ -198,6 +212,11 @@ App
   └─ year / month を更新
        └─ useEffect が発火
             └─ Supabase から該当月を取得 → shifts を更新
+
+勤務時間表ボタン
+  └─ showWorkTable を true → WorkTimeModal 表示
+       └─ 閉じるボタン or オーバーレイクリック
+            └─ showWorkTable を false → WorkTimeModal 非表示
 
 カレンダー出力ボタン
   └─ exportToICal(year, month, shifts)
@@ -217,8 +236,9 @@ shift-manager/
 ├── .gitignore                        # .env.local・node_modules・dist を除外
 ├── .env.local                        # 環境変数（Git管理外）
 ├── README.md
-├── DESIGN.md
-├── GUIDE_FOR_C_PYTHON_DEVELOPERS.md
+├── docs/
+│   ├── DESIGN.md
+│   └── GUIDE_FOR_C_PYTHON_DEVELOPERS.md
 └── src/
     ├── main.jsx                      # エントリーポイント
     ├── App.jsx                       # メインコンポーネント
@@ -229,7 +249,8 @@ shift-manager/
     │   └── ical.js                   # テスト用iCalモック
     └── test/
         ├── setup.js                  # テスト共通セットアップ
-        └── App.test.jsx              # テストコード
+        ├── App.test.jsx              # UIコンポーネントのテスト
+        └── ical.test.js             # iCalエクスポートのユニットテスト
 ```
 
 ---
@@ -283,20 +304,27 @@ vi.mock("../ical", () => icalMock);          // ファイルダウンロード�
 | 23 | App | カレンダー出力ボタンが存在する | ✅ |
 | 24 | App | カレンダー出力ボタンでexportToICalが呼ばれる | ✅ |
 | 25 | App | Supabaseデータがある場合シフトが表示される | ✅ |
+| 26 | WorkTimeModal | 「勤務時間表」ボタンが存在する | ✅ |
+| 27 | WorkTimeModal | ボタンをクリックするとモーダルが開く | ✅ |
+| 28 | WorkTimeModal | モーダルに各シフト区分が表示される | ✅ |
+| 29 | WorkTimeModal | モーダルに勤務時間が表示される | ✅ |
+| 30 | WorkTimeModal | 「閉じる」ボタンでモーダルが閉じる | ✅ |
+| 31 | WorkTimeModal | オーバーレイをクリックするとモーダルが閉じる | ✅ |
+| 32 | WorkTimeModal | 時間情報のないシフトは表に含まれない | ✅ |
 
 **ical.test.js（iCalエクスポートのユニットテスト）**
 
 | # | テストスイート | テスト内容 | 結果 |
 |---|---------------|-----------|------|
-| 26 | exportToICal | αなし → ベースシフト単体イベントが1つ出力される | ✅ |
-| 27 | exportToICal | αあり → ベース単体イベントは出力されずα付きのみ出力される | ✅ |
-| 28 | exportToICal | αが複数 → α付きイベントがα数分出力される | ✅ |
-| 29 | exportToICal | 複数日のデータを正しく出力できる | ✅ |
-| 30 | exportToICal | baseが空の日はイベントに含まれない | ✅ |
-| 31 | exportToICal | 日付フォーマットが正しい（YYYYMMDD形式） | ✅ |
-| 32 | exportToICal | ファイル名に年月が含まれる | ✅ |
+| 33 | exportToICal | αなし → ベースシフト単体イベントが1つ出力される | ✅ |
+| 34 | exportToICal | αあり → ベース単体イベントは出力されずα付きのみ出力される | ✅ |
+| 35 | exportToICal | αが複数 → α付きイベントがα数分出力される | ✅ |
+| 36 | exportToICal | 複数日のデータを正しく出力できる | ✅ |
+| 37 | exportToICal | baseが空の日はイベントに含まれない | ✅ |
+| 38 | exportToICal | 日付フォーマットが正しい（YYYYMMDD形式） | ✅ |
+| 39 | exportToICal | ファイル名に年月が含まれる | ✅ |
 
-合計: 32件 / 32件 パス
+合計: 39件
 
 ---
 
@@ -307,5 +335,6 @@ vi.mock("../ical", () => icalMock);          // ファイルダウンロード�
 | Phase 1 | 手動入力・カレンダー表示・集計 | ✅ 完了 |
 | Phase 2 | Supabase によるデータ永続化 | ✅ 完了 |
 | Phase 3 | iCal エクスポート（Googleカレンダー連携） | ✅ 完了 |
-| Phase 4 | Google Calendar API による自動同期 | 🔲 未着手 |
-| Phase 5 | シフト表写真からのAI自動入力 | 🔲 未着手 |
+| Phase 4 | 勤務時間表モーダル | ✅ 完了 |
+| Phase 5 | Google Calendar API による自動同期 | 🔲 未着手 |
+| Phase 6 | シフト表写真からのAI自動入力 | 🔲 未着手 |

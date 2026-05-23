@@ -210,8 +210,93 @@ describe("App コンポーネント", () => {
       "2": { base: "夜", alpha: ["残"] },
     });
     await renderAndWait();
-    // カレンダーに早番・夜勤のバッジが表示される
     expect(screen.getAllByText("早").length).toBeGreaterThan(0);
     expect(screen.getAllByText("夜").length).toBeGreaterThan(0);
+  });
+});
+
+// ---- WorkTimeModal のテスト ----
+
+describe("WorkTimeModal", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    supabaseMock.fetchShifts.mockResolvedValue({});
+  });
+
+  const renderAndWait = async () => {
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+    });
+  };
+
+  it("「勤務時間表」ボタンが存在する", async () => {
+    await renderAndWait();
+    expect(screen.getByText(/勤務時間表/)).toBeInTheDocument();
+  });
+
+  it("ボタンをクリックするとモーダルが開く", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText(/勤務時間表/));
+    // モーダルのテーブルヘッダー「区分」が表示されることで開いたことを確認
+    expect(screen.getByText("区分")).toBeInTheDocument();
+  });
+
+  it("モーダルに各シフト区分が表示される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText(/勤務時間表/));
+    expect(screen.getByText("早番1")).toBeInTheDocument();
+    expect(screen.getAllByText("早番").length).toBeGreaterThan(0);
+    expect(screen.getByText("日勤")).toBeInTheDocument();
+    expect(screen.getByText("遅番")).toBeInTheDocument();
+    expect(screen.getByText("夜勤")).toBeInTheDocument();
+  });
+
+  it("モーダルに勤務時間が表示される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText(/勤務時間表/));
+    expect(screen.getByText("7:00")).toBeInTheDocument();    // 早1 開始
+    expect(screen.getByText("15:45")).toBeInTheDocument();   // 早1 終了
+    expect(screen.getByText("7:30")).toBeInTheDocument();    // 早 開始
+    expect(screen.getByText("16:15")).toBeInTheDocument();   // 早 終了
+    expect(screen.getByText("8:45")).toBeInTheDocument();    // 日 開始
+    expect(screen.getByText("17:30")).toBeInTheDocument();   // 日 終了
+    expect(screen.getByText("10:15")).toBeInTheDocument();   // 遅 開始
+    // 19:00 は遅番・当直で重複する可能性があるため複数存在を許容
+    expect(screen.getAllByText("19:00").length).toBeGreaterThan(0);
+    expect(screen.getByText("16:30")).toBeInTheDocument();   // 夜 開始
+    expect(screen.getByText("翌9:30")).toBeInTheDocument();  // 夜 終了
+  });
+
+  it("「閉じる」ボタンでモーダルが閉じる", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText(/勤務時間表/));
+    fireEvent.click(screen.getByText("閉じる"));
+    await waitFor(() => {
+      expect(screen.queryByText("区分")).not.toBeInTheDocument();
+    });
+  });
+
+  it("オーバーレイをクリックするとモーダルが閉じる", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText(/勤務時間表/));
+    expect(screen.getByText("区分")).toBeInTheDocument();
+    const overlays = document.querySelectorAll('[style*="position: fixed"]');
+    const workOverlay = Array.from(overlays).find(
+      (el) => el.style.zIndex === "1000"
+    );
+    if (workOverlay) fireEvent.click(workOverlay);
+    await waitFor(() => {
+      expect(screen.queryByText("区分")).not.toBeInTheDocument();
+    });
+  });
+
+  it("時間情報のないシフト（明け休み・休み）は表に含まれない", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText(/勤務時間表/));
+    const rows = document.querySelectorAll("table tbody tr");
+    const labels = Array.from(rows).map((r) => r.cells[0]?.textContent);
+    expect(labels).not.toContain("明け休み");
+    expect(labels).not.toContain("休み");
   });
 });
