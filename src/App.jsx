@@ -545,8 +545,6 @@ export default function App() {
               </div>
             )}
 
-            <SummaryCards shifts={shifts} />
-
             {/* ビュー切替 */}
             <div style={{
               display: "flex", background: "#fff", borderRadius: "10px",
@@ -578,8 +576,11 @@ export default function App() {
               日付をタップしてシフトを入力できます
             </p>
           </>
+          
         )}
       </div>
+
+      <SummaryCards shifts={shifts} />
 
       {picker && (
         <ShiftPicker
