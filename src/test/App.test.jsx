@@ -49,9 +49,9 @@ describe("App コンポーネント", () => {
     });
   };
 
-  it("ヘッダーに「原田」が表示される", async () => {
+  it("ヘッダーに「ユーザ」が表示される", async () => {
     await renderAndWait();
-    expect(screen.getByText("原田")).toBeInTheDocument();
+    expect(screen.getByText("ユーザ")).toBeInTheDocument();
   });
 
   it("「シフト管理」ラベルが表示される", async () => {

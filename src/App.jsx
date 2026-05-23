@@ -24,8 +24,7 @@ const ALPHA_TYPES = [
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
-// const UNAME = import.meta.env.USER_NAME;
-const UNAME = "原田";
+const UNAME = import.meta.env.VITE_USER_NAME || "ユーザ";
 
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
