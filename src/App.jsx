@@ -4,13 +4,13 @@ import { exportToICal } from "./ical";
 
 // ベースシフト（1日1つだけ選択）
 const BASE_SHIFTS = [
-  { key: "日",  label: "日勤",     color: "#27AE60", bg: "#E9F7EF" },
-  { key: "早1", label: "早番1",    color: "#2E7BC4", bg: "#D6EAF8" },
-  { key: "早",  label: "早番",     color: "#4A90D9", bg: "#E8F4FD" },
-  { key: "遅",  label: "遅番",     color: "#E67E22", bg: "#FEF0E3" },
-  { key: "夜",  label: "夜勤",     color: "#6C3483", bg: "#F4ECF7" },
+  { key: "日",  label: "日勤",     color: "#27AE60", bg: "#E9F7EF", start: "8:45",  end: "17:30" },
+  { key: "早1", label: "早番1",    color: "#2E7BC4", bg: "#D6EAF8", start: "7:00",  end: "15:45" },
+  { key: "早",  label: "早番",     color: "#4A90D9", bg: "#E8F4FD", start: "7:30",  end: "16:15" },
+  { key: "遅",  label: "遅番",     color: "#E67E22", bg: "#FEF0E3", start: "10:15", end: "19:00" },
+  { key: "夜",  label: "夜勤",     color: "#6C3483", bg: "#F4ECF7", start: "16:30", end: "翌9:30" },
   { key: "明",  label: "明け休み", color: "#8E44AD", bg: "#EDE0F5" },
-  { key: "当",  label: "当直",     color: "#1ABC9C", bg: "#E8F8F5" },
+  { key: "当",  label: "当直",     color: "#1ABC9C", bg: "#E8F8F5", start: "19:30", end: "翌7:00" },
   { key: "休",  label: "休み",     color: "#95A5A6", bg: "#F2F3F4" },
   { key: "",    label: "未入力",   color: "#BDC3C7", bg: "#FAFAFA" },
 ];
@@ -77,6 +77,80 @@ function AlphaBadge({ alphaKey }) {
     }}>
       {info.label}
     </span>
+  );
+}
+
+function WorkTimeModal({ open, onClose }) {
+  if (!open) return null;
+
+  const thStyle = {
+    borderBottom: "1px solid #ddd",
+    padding: "8px 10px",
+    fontSize: "13px",
+    textAlign: "left",
+    color: "#555",
+  };
+  const tdStyle = {
+    borderBottom: "1px solid #eee",
+    padding: "8px 10px",
+    fontSize: "13px",
+  };
+
+  const rows = BASE_SHIFTS.filter(s => s.start);
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(0,0,0,0.4)",
+        display: "flex", justifyContent: "center", alignItems: "center",
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "#fff", borderRadius: "14px",
+          width: "90%", maxWidth: "380px",
+          padding: "20px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ fontSize: "17px", fontWeight: "700", marginBottom: "14px" }}>
+          勤務時間表
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={thStyle}>区分</th>
+              <th style={thStyle}>開始</th>
+              <th style={thStyle}>終了</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(s => (
+              <tr key={s.key}>
+                <td style={{ ...tdStyle, color: s.color, fontWeight: "600" }}>{s.label}</td>
+                <td style={tdStyle}>{s.start}</td>
+                <td style={tdStyle}>{s.end}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: "18px", width: "100%", padding: "10px",
+            border: "none", borderRadius: "10px",
+            background: "#4A90D9", color: "#fff",
+            fontWeight: "700", cursor: "pointer", fontSize: "14px",
+          }}
+        >
+          閉じる
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -401,6 +475,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showWorkTable, setShowWorkTable] = useState(false);
 
   const loadShifts = useCallback(async () => {
     setLoading(true);
@@ -477,6 +552,16 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             {saving && <span style={{ fontSize: "11px", color: "#7fb3d3" }}>保存中...</span>}
+
+            {/* 追加：勤務時間表ボタン */}
+            <button onClick={() => setShowWorkTable(true)} style={{
+              background: "#27AE60", border: "none", borderRadius: "10px",
+              color: "#fff", padding: "8px 12px", cursor: "pointer",
+              fontSize: "12px", fontWeight: "700"
+            }}>
+              🕐 勤務時間表
+            </button>
+
             <button onClick={() => exportToICal(year, month, shifts)} style={{
               background: "#1ABC9C", border: "none", borderRadius: "10px",
               color: "#fff", padding: "8px 12px", cursor: "pointer",
@@ -581,6 +666,10 @@ export default function App() {
       </div>
 
       <SummaryCards shifts={shifts} />
+
+      {/* 追加：モーダル */}
+      <WorkTimeModal open={showWorkTable} onClose={() => setShowWorkTable(false)} />
+
 
       {picker && (
         <ShiftPicker
