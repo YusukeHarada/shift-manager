@@ -47,20 +47,22 @@ export function exportToICal(year, month, shifts) {
     const label = BASE_LABELS[base] || base;
     const dateStr = formatDate(year, month, Number(day));
 
-    // ベースシフトのイベント
-    lines.push("BEGIN:VEVENT");
-    lines.push(`UID:${makeUid(year, month, day)}`);
-    lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
-    lines.push(`DTEND;VALUE=DATE:${dateStr}`);
-    lines.push(`SUMMARY:${label}`);
-    lines.push(`DESCRIPTION:原田 真依 - ${label}`);
-    lines.push("END:VEVENT");
-
-    // αオプションのイベント（1つずつ追加）
-    for (const alphaKey of alphaKeys) {
-      const alphaLabel = ALPHA_LABELS[alphaKey] || alphaKey;
+    if (alphaKeys.length === 0) {
+      // αオプションなし → ベースシフト単体のイベント
       lines.push("BEGIN:VEVENT");
-      lines.push(`UID:${makeUid(year, month, day, alphaKey)}`);
+      lines.push(`UID:${makeUid(year, month, day)}`);
+      lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
+      lines.push(`DTEND;VALUE=DATE:${dateStr}`);
+      lines.push(`SUMMARY:${label}`);
+      lines.push(`DESCRIPTION:原田 真依 - ${label}`);
+      lines.push("END:VEVENT");
+    } else {
+      // αオプションあり → ベース単体は出さず「早番（残業）」形式のみ出力
+      const alphaLabel = alphaKeys
+        .map((alphaKey) => ALPHA_LABELS[alphaKey] || alphaKey)
+        .join(",");
+      lines.push("BEGIN:VEVENT");
+      lines.push(`UID:${makeUid(year, month, day)}`);
       lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
       lines.push(`DTEND;VALUE=DATE:${dateStr}`);
       lines.push(`SUMMARY:${label}（${alphaLabel}）`);
