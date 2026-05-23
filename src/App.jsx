@@ -270,30 +270,126 @@ function ListView({ year, month, shifts, onDayClick }) {
 
 // 集計（ベースシフトのみ）
 function SummaryCards({ shifts }) {
-  const counts = {};
-  BASE_SHIFTS.forEach(s => { if (s.key) counts[s.key] = 0; });
-  Object.values(shifts).forEach(entry => {
-    const k = entry?.base;
-    if (k && counts[k] !== undefined) counts[k]++;
+  // ベース集計
+  const baseCounts = {};
+  BASE_SHIFTS.forEach(s => {
+    if (s.key) baseCounts[s.key] = 0;
   });
-  const items = BASE_SHIFTS.filter(s => s.key && counts[s.key] > 0);
-  if (items.length === 0) return null;
+
+  // α集計
+  const alphaCounts = {};
+  ALPHA_TYPES.forEach(a => {
+    if (a.key) alphaCounts[a.key] = 0;
+  });
+
+  // 集計
+  Object.values(shifts).forEach(entry => {
+    // base
+    const base = entry?.base;
+    if (base && baseCounts[base] !== undefined) {
+      baseCounts[base]++;
+    }
+
+    // alpha（複数）
+    const alphas = entry?.alpha || [];
+    alphas.forEach(a => {
+      if (alphaCounts[a] !== undefined) {
+        alphaCounts[a]++;
+      }
+    });
+  });
+
+  const baseItems = BASE_SHIFTS.filter(
+    s => s.key && baseCounts[s.key] > 0
+  );
+
+  const alphaItems = ALPHA_TYPES.filter(
+    a => a.key && alphaCounts[a.key] > 0
+  );
+
+  if (baseItems.length === 0 && alphaItems.length === 0) {
+    return null;
+  }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "14px" }}>
-      {items.map(s => (
-        <div key={s.key} style={{
-          background: s.bg, border: `1.5px solid ${s.color}`,
-          borderRadius: "10px", padding: "10px 8px", textAlign: "center"
-        }}>
-          <div style={{ fontSize: "20px", fontWeight: "800", color: s.color }}>{counts[s.key]}</div>
-          <div style={{ fontSize: "11px", color: s.color, fontWeight: "600" }}>{s.label}</div>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(90px, 1fr))",
+        gap: "8px",
+        marginBottom: "14px"
+      }}
+    >
+      {/* base */}
+      {baseItems.map(s => (
+        <div
+          key={s.key}
+          style={{
+            background: s.bg,
+            border: `1.5px solid ${s.color}`,
+            borderRadius: "10px",
+            padding: "10px 8px",
+            textAlign: "center"
+          }}
+        >
+          <div
+            style={{
+              fontSize: "20px",
+              fontWeight: "800",
+              color: s.color
+            }}
+          >
+            {baseCounts[s.key]}
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: s.color,
+              fontWeight: "600"
+            }}
+          >
+            {s.label}
+          </div>
+        </div>
+      ))}
+
+      {/* alpha */}
+      {alphaItems.map(a => (
+        <div
+          key={a.key}
+          style={{
+            background: a.bg,
+            border: `1.5px solid ${a.color}`,
+            borderRadius: "10px",
+            padding: "10px 8px",
+            textAlign: "center"
+          }}
+        >
+          <div
+            style={{
+              fontSize: "20px",
+              fontWeight: "800",
+              color: a.color
+            }}
+          >
+            {alphaCounts[a.key]}
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              color: a.color,
+              fontWeight: "600"
+            }}
+          >
+            {a.label}
+          </div>
         </div>
       ))}
     </div>
   );
 }
-
 export default function App() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
