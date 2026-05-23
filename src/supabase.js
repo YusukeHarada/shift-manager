@@ -9,26 +9,29 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 export async function fetchShifts(year, month) {
   const { data, error } = await supabase
     .from("shifts")
-    .select("day, shift_key")
+    .select("day, shift_key, alpha")
     .eq("year", year)
     .eq("month", month);
 
   if (error) throw error;
 
-  // { "1": "早", "2": "夜", ... } の形式に変換
+  // { "1": { base: "早", alpha: ["残", "会"] }, ... } の形式に変換
   const result = {};
   for (const row of data) {
-    result[String(row.day)] = row.shift_key;
+    result[String(row.day)] = {
+      base: row.shift_key ?? "",
+      alpha: row.alpha ?? [],
+    };
   }
   return result;
 }
 
-// 1日分のシフトを保存（upsert: なければ追加、あれば更新）
-export async function saveShift(year, month, day, shift_key) {
+// 1日分のシフトを保存（upsert）
+export async function saveShift(year, month, day, shift_key, alpha = []) {
   const { error } = await supabase
     .from("shifts")
     .upsert(
-      { year, month, day, shift_key, updated_at: new Date().toISOString() },
+      { year, month, day, shift_key, alpha, updated_at: new Date().toISOString() },
       { onConflict: "year,month,day" }
     );
 

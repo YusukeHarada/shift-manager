@@ -1,27 +1,31 @@
 // iCal（.ics）形式でシフトデータをエクスポートする
 
-const SHIFT_LABELS = {
-  "早":  "早番",
+const BASE_LABELS = {
+  "日":  "日勤",
   "早1": "早番1",
+  "早":  "早番",
   "遅":  "遅番",
   "夜":  "夜勤",
   "明":  "明け休み",
   "当":  "当直",
   "休":  "休み",
-  "α":   "残業",
-  "会":  "会議",
 };
 
-// 日付を yyyyMMdd 形式に変換
+const ALPHA_LABELS = {
+  "残": "残業",
+  "会": "会議",
+  "α":  "当直",
+};
+
 function formatDate(year, month, day) {
   const m = String(month).padStart(2, "0");
   const d = String(day).padStart(2, "0");
   return `${year}${m}${d}`;
 }
 
-// ユニークIDを生成
-function makeUid(year, month, day) {
-  return `shift-${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}@shift-manager`;
+function makeUid(year, month, day, suffix = "") {
+  const base = `shift-${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}`;
+  return suffix ? `${base}-${suffix}@shift-manager` : `${base}@shift-manager`;
 }
 
 export function exportToICal(year, month, shifts) {
@@ -33,11 +37,17 @@ export function exportToICal(year, month, shifts) {
     "METHOD:PUBLISH",
   ];
 
-  for (const [day, shiftKey] of Object.entries(shifts)) {
-    if (!shiftKey) continue;
-    const label = SHIFT_LABELS[shiftKey] || shiftKey;
+  for (const [day, entry] of Object.entries(shifts)) {
+    // entry は { base: "日", alpha: ["残", "会"] } の形式
+    const base = typeof entry === "object" ? entry.base : entry;
+    const alphaKeys = typeof entry === "object" ? (entry.alpha || []) : [];
+
+    if (!base) continue;
+
+    const label = BASE_LABELS[base] || base;
     const dateStr = formatDate(year, month, Number(day));
 
+    // ベースシフトのイベント
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${makeUid(year, month, day)}`);
     lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
@@ -45,6 +55,18 @@ export function exportToICal(year, month, shifts) {
     lines.push(`SUMMARY:${label}`);
     lines.push(`DESCRIPTION:原田 真依 - ${label}`);
     lines.push("END:VEVENT");
+
+    // αオプションのイベント（1つずつ追加）
+    for (const alphaKey of alphaKeys) {
+      const alphaLabel = ALPHA_LABELS[alphaKey] || alphaKey;
+      lines.push("BEGIN:VEVENT");
+      lines.push(`UID:${makeUid(year, month, day, alphaKey)}`);
+      lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
+      lines.push(`DTEND;VALUE=DATE:${dateStr}`);
+      lines.push(`SUMMARY:${label}（${alphaLabel}）`);
+      lines.push(`DESCRIPTION:原田 真依 - ${label}（${alphaLabel}）`);
+      lines.push("END:VEVENT");
+    }
   }
 
   lines.push("END:VCALENDAR");
@@ -53,7 +75,6 @@ export function exportToICal(year, month, shifts) {
   const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
-  // ダウンロードを実行
   const a = document.createElement("a");
   a.href = url;
   a.download = `shift_${year}_${String(month).padStart(2, "0")}.ics`;
