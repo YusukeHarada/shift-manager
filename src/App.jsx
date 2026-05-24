@@ -80,6 +80,114 @@ function AlphaBadge({ alphaKey }) {
   );
 }
 
+
+// シフト入力モード用パネル
+function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift, onToggleAlpha, onSave }) {
+  return (
+    <div
+      data-testid="shift-input-panel"
+      style={{
+        background: "#fff", borderRadius: "14px", padding: "14px 12px",
+        marginBottom: "14px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+        border: "1.5px solid #E74C3C22",
+      }}
+    >
+      {/* 選択状態サマリ */}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
+        <span style={{ fontSize: "12px", color: "#888" }}>選択中：</span>
+        {inputShift
+          ? <span data-testid="selected-shift-label" style={{
+              fontSize: "12px", fontWeight: "700",
+              color: getBaseInfo(inputShift).color,
+              background: getBaseInfo(inputShift).bg,
+              border: `1px solid ${getBaseInfo(inputShift).color}`,
+              borderRadius: "6px", padding: "2px 8px",
+            }}>{getBaseInfo(inputShift).label}</span>
+          : <span style={{ fontSize: "12px", color: "#ccc" }}>シフト未選択</span>
+        }
+        {inputAlpha.length > 0 && (
+          <span data-testid="selected-alpha-label" style={{ display: "flex", gap: "4px" }}>
+            {inputAlpha.map(k => {
+              const a = ALPHA_TYPES.find(x => x.key === k);
+              return a ? (
+                <span key={k} style={{
+                  fontSize: "11px", fontWeight: "700", color: a.color,
+                  background: a.bg, border: `1px solid ${a.color}`,
+                  borderRadius: "4px", padding: "1px 5px",
+                }}>{a.label}</span>
+              ) : null;
+            })}
+          </span>
+        )}
+        <span style={{ marginLeft: "auto", fontSize: "12px", color: "#888" }}>
+          日付：<span data-testid="selected-dates-count" style={{ fontWeight: "700", color: "#E74C3C" }}>
+            {selectedDates.size}
+          </span>件選択
+        </span>
+      </div>
+
+      {/* ベースシフト選択 */}
+      <p style={{ margin: "0 0 6px", fontSize: "11px", color: "#888", fontWeight: "600" }}>シフト</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "5px", marginBottom: "10px" }}>
+        {BASE_SHIFTS.filter(s => s.key).map(s => (
+          <button
+            key={s.key}
+            data-shift={s.key}
+            onClick={() => onSelectShift(s.key)}
+            style={{
+              padding: "8px 4px",
+              border: `2px solid ${s.key === inputShift ? s.color : "#eee"}`,
+              borderRadius: "8px",
+              background: s.key === inputShift ? s.bg : "#fafafa",
+              cursor: "pointer", fontSize: "11px", fontWeight: "600", color: s.color,
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* αオプション */}
+      <p style={{ margin: "0 0 6px", fontSize: "11px", color: "#888", fontWeight: "600" }}>オプション（複数可）</p>
+      <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+        {ALPHA_TYPES.map(a => {
+          const active = inputAlpha.includes(a.key);
+          return (
+            <button
+              key={a.key}
+              data-alpha={a.key}
+              onClick={() => onToggleAlpha(a.key)}
+              style={{
+                flex: 1, padding: "8px 4px",
+                border: `2px solid ${active ? a.color : "#eee"}`,
+                borderRadius: "8px",
+                background: active ? a.bg : "#fafafa",
+                cursor: "pointer", fontSize: "11px", fontWeight: "600", color: a.color,
+              }}
+            >
+              {a.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 保存ボタン */}
+      <button
+        data-action="save"
+        onClick={onSave}
+        style={{
+          width: "100%", padding: "11px",
+          background: inputShift && selectedDates.size > 0 ? "#E74C3C" : "#ccc",
+          border: "none", borderRadius: "10px",
+          color: "#fff", fontWeight: "700", fontSize: "14px", cursor: "pointer",
+        }}
+      >
+        保存（{selectedDates.size}件）
+      </button>
+    </div>
+  );
+}
+
 function WorkTimeModal({ open, onClose }) {
   if (!open) return null;
 
@@ -236,7 +344,7 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
 }
 
 // カレンダービュー
-function CalendarView({ year, month, shifts, onDayClick }) {
+function CalendarView({ year, month, shifts, onDayClick, inputMode = false, selectedDates = new Set() }) {
   const days = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
   const today = new Date();
@@ -266,11 +374,14 @@ function CalendarView({ year, month, shifts, onDayClick }) {
           const alphaKeys = entry.alpha || [];
           const info = getBaseInfo(shiftKey);
           const isToday = isCurrentMonth && today.getDate() === d;
+          const isSelected = inputMode && selectedDates.has(d);
+          const borderColor = isSelected ? "#E74C3C" : isToday ? "#4A90D9" : "#eee";
+          const borderWidth = isSelected || isToday ? "2px" : "1.5px";
           return (
             <div key={d} onClick={() => onDayClick(d)} style={{
               borderRadius: "8px", padding: "4px 2px",
-              background: shiftKey ? info.bg : "#f9f9f9",
-              border: isToday ? "2px solid #4A90D9" : "1.5px solid #eee",
+              background: isSelected ? "#FDEDEC" : shiftKey ? info.bg : "#f9f9f9",
+              border: `${borderWidth} solid ${borderColor}`,
               cursor: "pointer", minHeight: "58px",
               display: "flex", flexDirection: "column", alignItems: "center", gap: "2px",
             }}>
@@ -476,6 +587,10 @@ export default function App() {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showWorkTable, setShowWorkTable] = useState(false);
+  const [inputMode, setInputMode] = useState(false);
+  const [selectedDates, setSelectedDates] = useState(new Set());
+  const [inputShift, setInputShift] = useState("");
+  const [inputAlpha, setInputAlpha] = useState([]);
 
   const loadShifts = useCallback(async () => {
     setLoading(true);
@@ -507,6 +622,68 @@ export default function App() {
       console.error(e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 入力モード: トグル（モード切替時にリセット）
+  const toggleInputMode = () => {
+    setInputMode(prev => {
+      if (prev) {
+        setSelectedDates(new Set());
+        setInputShift("");
+        setInputAlpha([]);
+      }
+      return !prev;
+    });
+  };
+
+  // 入力モード: 日付のトグル選択
+  const toggleDateSelection = (day) => {
+    setSelectedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(day)) next.delete(day);
+      else next.add(day);
+      return next;
+    });
+  };
+
+  // 入力モード: αオプションのトグル
+  const toggleInputAlpha = (key) => {
+    setInputAlpha(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  // 入力モード: 一括保存
+  const handleBulkSave = async () => {
+    if (!inputShift || selectedDates.size === 0) return;
+    const days = Array.from(selectedDates);
+    // 楽観的更新
+    setShifts(prev => {
+      const next = { ...prev };
+      days.forEach(d => { next[String(d)] = { base: inputShift, alpha: inputAlpha }; });
+      return next;
+    });
+    setSelectedDates(new Set());
+    setInputShift("");
+    setInputAlpha([]);
+    setSaving(true);
+    try {
+      await Promise.all(days.map(d => saveShift(year, month, d, inputShift, inputAlpha)));
+    } catch (e) {
+      setError("保存に失敗しました");
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // カレンダー日付クリック（通常 / 入力モードで分岐）
+  const handleDayClick = (day) => {
+    if (inputMode) {
+      toggleDateSelection(day);
+    } else {
+      setPicker(day);
     }
   };
 
@@ -552,6 +729,20 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             {saving && <span style={{ fontSize: "11px", color: "#7fb3d3" }}>保存中...</span>}
+
+            {/* 入力モードトグル */}
+            <button
+              onClick={toggleInputMode}
+              aria-label={inputMode ? "入力モード終了" : "入力モード開始"}
+              style={{
+                background: inputMode ? "#E74C3C" : "rgba(255,255,255,0.15)",
+                border: "none", borderRadius: "10px",
+                color: "#fff", padding: "8px 12px", cursor: "pointer",
+                fontSize: "12px", fontWeight: "700",
+              }}
+            >
+              {inputMode ? "✏️ 入力中" : "✏️ 入力モード"}
+            </button>
 
             {/* 追加：勤務時間表ボタン */}
             <button onClick={() => setShowWorkTable(true)} style={{
@@ -647,13 +838,24 @@ export default function App() {
               ))}
             </div>
 
+            {inputMode && (
+              <ShiftInputPanel
+                inputShift={inputShift}
+                inputAlpha={inputAlpha}
+                selectedDates={selectedDates}
+                onSelectShift={setInputShift}
+                onToggleAlpha={toggleInputAlpha}
+                onSave={handleBulkSave}
+              />
+            )}
+
             <div style={{
               background: "#fff", borderRadius: "14px", padding: "14px",
               boxShadow: "0 2px 12px rgba(0,0,0,0.06)"
             }}>
               {view === "calendar"
-                ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={setPicker} />
-                : <ListView year={year} month={month} shifts={shifts} onDayClick={setPicker} />
+                ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} inputMode={inputMode} selectedDates={selectedDates} />
+                : <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} />
               }
             </div>
 
@@ -671,7 +873,7 @@ export default function App() {
       <WorkTimeModal open={showWorkTable} onClose={() => setShowWorkTable(false)} />
 
 
-      {picker && (
+      {!inputMode && picker && (
         <ShiftPicker
           day={picker}
           currentBase={pickerEntry?.base ?? ""}
