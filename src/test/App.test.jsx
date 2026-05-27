@@ -208,12 +208,12 @@ describe("App コンポーネント", () => {
 
   it("ログアウトボタンが存在する", async () => {
     await renderAndWait();
-    expect(screen.getByText("ログアウト")).toBeInTheDocument();
+    expect(screen.getByText(/ログアウト/)).toBeInTheDocument();
   });
 
   it("ログアウトボタンをクリックするとsignOutが呼ばれる", async () => {
     await renderAndWait();
-    fireEvent.click(screen.getByText("ログアウト"));
+    fireEvent.click(screen.getByText(/ログアウト/));
     await waitFor(() => {
       expect(supabaseMock.supabase.auth.signOut).toHaveBeenCalled();
     });
