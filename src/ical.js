@@ -15,6 +15,7 @@ const ALPHA_LABELS = {
   "残": "残業",
   "会": "会議",
   "当": "当直",
+  "α": "残業",  // 旧キーとの互換性維持
 };
 
 function formatDate(year, month, day) {
@@ -58,16 +59,16 @@ export function exportToICal(year, month, shifts) {
       lines.push("END:VEVENT");
     } else {
       // αオプションあり → ベース単体は出さず「早番（残業）」形式のみ出力
-      const alphaLabel = alphaKeys
-        .map((alphaKey) => ALPHA_LABELS[alphaKey] || alphaKey)
-        .join(",");
-      lines.push("BEGIN:VEVENT");
-      lines.push(`UID:${makeUid(year, month, day)}`);
-      lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
-      lines.push(`DTEND;VALUE=DATE:${dateStr}`);
-      lines.push(`SUMMARY:${label}（${alphaLabel}）`);
-      lines.push(`DESCRIPTION:原田 真依 - ${label}（${alphaLabel}）`);
-      lines.push("END:VEVENT");
+      for (const alphaKey of alphaKeys) {
+        const alphaLabel = ALPHA_LABELS[alphaKey] || alphaKey;
+        lines.push("BEGIN:VEVENT");
+        lines.push(`UID:${makeUid(year, month, day, alphaKey)}`);
+        lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
+        lines.push(`DTEND;VALUE=DATE:${dateStr}`);
+        lines.push(`SUMMARY:${label}（${alphaLabel}）`);
+        lines.push(`DESCRIPTION:原田 真依 - ${label}（${alphaLabel}）`);
+        lines.push("END:VEVENT");
+      }
     }
   }
 

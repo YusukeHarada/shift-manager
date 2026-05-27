@@ -50,10 +50,11 @@ describe("exportToICal", () => {
       "1": { base: "早", alpha: ["残", "会"] },
     });
 
-    expect(capturedContent).toContain("SUMMARY:早番（残業,会議）");
+    expect(capturedContent).toContain("SUMMARY:早番（残業）");
+    expect(capturedContent).toContain("SUMMARY:早番（会議）");
     expect(capturedContent).not.toMatch(/^SUMMARY:早番$/m);
     const count = (capturedContent.match(/BEGIN:VEVENT/g) || []).length;
-    expect(count).toBe(1);
+    expect(count).toBe(2);
   });
 
   it("複数日のデータを正しく出力できる", () => {
