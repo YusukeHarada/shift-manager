@@ -20,79 +20,48 @@ export default function Login() {
     }
   };
 
+  const canSubmit = email && password && !loading;
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Hiragino Sans', 'Yu Gothic', sans-serif",
-      padding: "20px",
-    }}>
-      <div style={{
-        background: "#fff", borderRadius: "20px", padding: "32px 24px",
-        width: "100%", maxWidth: "360px",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.4)"
-      }}>
-        <div style={{ textAlign: "center", marginBottom: "28px" }}>
-          <div style={{ fontSize: "36px", marginBottom: "8px" }}>📅</div>
-          <div style={{ fontSize: "20px", fontWeight: "800", color: "#1a1a2e" }}>シフト管理</div>
-          <div style={{ fontSize: "13px", color: "#888", marginTop: "4px" }}>ログインしてください</div>
-        </div>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-icon">📅</div>
+        <div className="login-title">シフト管理</div>
+        <div className="login-subtitle">ログインしてください</div>
 
         {error && (
-          <div style={{
-            background: "#FDEDEC", border: "1.5px solid #e74c3c",
-            borderRadius: "8px", padding: "10px 14px",
-            fontSize: "13px", color: "#e74c3c", marginBottom: "16px"
-          }}>
+          <div className="error-banner" style={{ marginBottom: "20px" }}>
             {error}
           </div>
         )}
 
         <div style={{ marginBottom: "14px" }}>
-          <label style={{ fontSize: "12px", color: "#666", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-            メールアドレス
-          </label>
+          <label className="form-label">メールアドレス</label>
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="例: yusuke@shift.local"
-            style={{
-              width: "100%", padding: "12px", borderRadius: "10px",
-              border: "1.5px solid #ddd", fontSize: "15px",
-              boxSizing: "border-box", outline: "none",
-            }}
+            className="form-input"
           />
         </div>
 
         <div style={{ marginBottom: "24px" }}>
-          <label style={{ fontSize: "12px", color: "#666", fontWeight: "600", display: "block", marginBottom: "6px" }}>
-            パスワード
-          </label>
+          <label className="form-label">パスワード</label>
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="パスワード"
-            onKeyDown={e => e.key === "Enter" && handleLogin()}
-            style={{
-              width: "100%", padding: "12px", borderRadius: "10px",
-              border: "1.5px solid #ddd", fontSize: "15px",
-              boxSizing: "border-box", outline: "none",
-            }}
+            onKeyDown={e => e.key === "Enter" && canSubmit && handleLogin()}
+            className="form-input"
           />
         </div>
 
         <button
           onClick={handleLogin}
-          disabled={!email || !password || loading}
-          style={{
-            width: "100%", padding: "14px", borderRadius: "12px",
-            border: "none", fontSize: "15px", fontWeight: "700",
-            background: email && password && !loading ? "#4A90D9" : "#ccc",
-            color: "#fff", cursor: email && password && !loading ? "pointer" : "not-allowed",
-          }}
+          disabled={!canSubmit}
+          className={`login-submit ${canSubmit ? "login-submit--active" : "login-submit--disabled"}`}
         >
           {loading ? "ログイン中..." : "ログイン"}
         </button>
