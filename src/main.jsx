@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
+import "./index.css";
 import App from "./App";
 import Login from "./Login";
 import { supabase } from "./supabase";
@@ -26,10 +27,9 @@ function Root() {
     return (
       <div style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+        background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 100%)",
         display: "flex", alignItems: "center", justifyContent: "center",
         color: "#fff", fontSize: "14px",
-        fontFamily: "'Hiragino Sans', 'Yu Gothic', sans-serif",
       }}>
         読み込み中...
       </div>
