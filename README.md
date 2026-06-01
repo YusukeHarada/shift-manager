@@ -4,6 +4,7 @@
 
 ## 機能
 
+- Supabase 認証によるログイン（メール／パスワード）
 - 月次シフトの手動入力（ベースシフト8種類 ＋ αオプション複数選択）
 - カレンダー表示 / リスト表示の切り替え
 - シフト種別ごとの集計
@@ -38,7 +39,8 @@
 
 - React 18
 - Vite 5
-- Supabase（PostgreSQL）
+- Supabase（PostgreSQL ＋ 認証）
+- CSS 変数によるデザインシステム（フレームワークなし）
 - Vitest / @testing-library/react（テスト）
 - Vercel（ホスティング）
 
@@ -83,6 +85,8 @@ Vercel に GitHub リポジトリを連携してデプロイします。
 - [x] 手動入力・カレンダー表示・集計
 - [x] Supabase によるデータ永続化
 - [x] iCal エクスポート（Googleカレンダー連携）
+- [x] Supabase 認証（メール／パスワードログイン）
+- [x] モダン UI リデザイン（CSS 変数・アニメーション・ボトムシート）
 - [ ] Google Calendar API による自動同期
 - [ ] シフト表写真からのAI自動入力
 
