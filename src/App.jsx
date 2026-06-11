@@ -587,20 +587,19 @@ export default function App({ session: _session }) {
 
   return (
     <div style={{ minHeight: "100dvh", background: "var(--color-bg)" }}>
-      {/* ヘッダー */}
+      {/* ヘッダー：タイトル・月ナビを1行に集約してカレンダー表示領域を確保 */}
       <header className="app-header">
-        <div className="app-header__top">
+        <div className="app-header__row">
           <div className="app-header__title-area">
             <span className="app-header__label">シフト管理</span>
             <span className="app-header__name">{UNAME}</span>
           </div>
+          <div className="month-nav">
+            <button onClick={prevMonth} className="month-nav__btn">‹</button>
+            <span className="month-nav__label">{year}年{month}月</span>
+            <button onClick={nextMonth} className="month-nav__btn">›</button>
+          </div>
           {saving && <span className="saving-indicator">保存中...</span>}
-        </div>
-
-        <div className="month-nav">
-          <button onClick={prevMonth} className="month-nav__btn">‹</button>
-          <span className="month-nav__label">{year}年{month}月</span>
-          <button onClick={nextMonth} className="month-nav__btn">›</button>
         </div>
       </header>
 
