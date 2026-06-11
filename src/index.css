@@ -126,47 +126,6 @@ input {
   letter-spacing: -0.02em;
 }
 
-.app-header__actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.header-btn {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: var(--radius-md);
-  color: #fff;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.header-btn:hover {
-  background: rgba(255,255,255,0.2);
-}
-
-.header-btn--active {
-  background: var(--color-danger) !important;
-  border-color: var(--color-danger) !important;
-}
-
-.header-btn--green {
-  background: rgba(34,197,94,0.25);
-  border-color: rgba(34,197,94,0.4);
-}
-
-.header-btn--teal {
-  background: rgba(20,184,166,0.25);
-  border-color: rgba(20,184,166,0.4);
-}
 
 .month-nav {
   display: flex;
@@ -202,7 +161,7 @@ input {
 
 .page-content {
   padding: 14px 12px;
-  padding-bottom: calc(40px + var(--safe-bottom));
+  padding-bottom: calc(72px + var(--safe-bottom));
 }
 
 .card {
@@ -891,6 +850,58 @@ input {
   background: #cbd5e1;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  display: flex;
+  padding-bottom: var(--safe-bottom);
+  z-index: 200;
+}
+
+.bottom-nav__btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 4px;
+  min-height: 56px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  transition: color var(--transition), background var(--transition);
+  min-width: unset;
+}
+
+.bottom-nav__btn:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.bottom-nav__btn--active {
+  color: var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.bottom-nav__icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.bottom-nav__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 
 /* Hint text */
