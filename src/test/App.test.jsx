@@ -209,18 +209,18 @@ describe("App コンポーネント", () => {
 
   it("カレンダー出力ボタンが存在する", async () => {
     await renderAndWait();
-    expect(screen.getByText(/カレンダー出力/)).toBeInTheDocument();
+    expect(screen.getByText(/^出力$/)).toBeInTheDocument();
   });
 
   it("カレンダー出力ボタンをクリックするとexportToICalが呼ばれる", async () => {
     await renderAndWait();
-    fireEvent.click(screen.getByText(/カレンダー出力/));
+    fireEvent.click(screen.getByText(/^出力$/).closest("button"));
     expect(icalMock.exportToICal).toHaveBeenCalled();
   });
 
   it("カレンダー出力時にユーザ名が引数として渡される", async () => {
     await renderAndWait();
-    fireEvent.click(screen.getByText(/カレンダー出力/));
+    fireEvent.click(screen.getByText(/^出力$/).closest("button"));
     expect(icalMock.exportToICal).toHaveBeenCalledWith(
       expect.any(Number),
       expect.any(Number),

@@ -154,6 +154,33 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
   );
 }
 
+function BottomNav({ inputMode, onToggleInput, onShowWorkTable, onExportICal, onSignOut }) {
+  return (
+    <nav className="bottom-nav">
+      <button onClick={onShowWorkTable} className="bottom-nav__btn">
+        <span className="bottom-nav__icon">🕐</span>
+        <span className="bottom-nav__label">時間表</span>
+      </button>
+      <button
+        onClick={onToggleInput}
+        className={`bottom-nav__btn${inputMode ? " bottom-nav__btn--active" : ""}`}
+        aria-label={inputMode ? "入力モード終了" : "入力モード開始"}
+      >
+        <span className="bottom-nav__icon">✏️</span>
+        <span className="bottom-nav__label">{inputMode ? "入力中" : "入力"}</span>
+      </button>
+      <button onClick={onExportICal} className="bottom-nav__btn">
+        <span className="bottom-nav__icon">📅</span>
+        <span className="bottom-nav__label">出力</span>
+      </button>
+      <button onClick={onSignOut} className="bottom-nav__btn">
+        <span className="bottom-nav__icon">🚪</span>
+        <span className="bottom-nav__label">ログアウト</span>
+      </button>
+    </nav>
+  );
+}
+
 function WorkTimeModal({ open, onClose }) {
   if (!open) return null;
   const rows = BASE_SHIFTS.filter(s => s.start);
@@ -567,32 +594,7 @@ export default function App({ session: _session }) {
             <span className="app-header__label">シフト管理</span>
             <span className="app-header__name">{UNAME}</span>
           </div>
-          <div className="app-header__actions">
-            {saving && <span className="saving-indicator">保存中...</span>}
-
-            <button
-              onClick={toggleInputMode}
-              aria-label={inputMode ? "入力モード終了" : "入力モード開始"}
-              className={`header-btn ${inputMode ? "header-btn--active" : ""}`}
-            >
-              ✏️ {inputMode ? "入力中" : "入力"}
-            </button>
-
-            <button onClick={() => setShowWorkTable(true)} className="header-btn header-btn--green">
-              🕐 時間表
-            </button>
-
-            <button onClick={() => exportToICal(year, month, shifts, UNAME)} className="header-btn header-btn--teal">
-              📅 カレンダー出力
-            </button>
-
-            <button
-              onClick={async () => { await supabase.auth.signOut(); }}
-              className="header-btn"
-            >
-              🚪 ログアウト
-            </button>
-          </div>
+          {saving && <span className="saving-indicator">保存中...</span>}
         </div>
 
         <div className="month-nav">
@@ -678,6 +680,14 @@ export default function App({ session: _session }) {
           onClose={() => setPicker(null)}
         />
       )}
+
+      <BottomNav
+        inputMode={inputMode}
+        onToggleInput={toggleInputMode}
+        onShowWorkTable={() => setShowWorkTable(true)}
+        onExportICal={() => exportToICal(year, month, shifts, UNAME)}
+        onSignOut={async () => { await supabase.auth.signOut(); }}
+      />
     </div>
   );
 }
