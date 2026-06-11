@@ -29,7 +29,7 @@ function Root() {
         minHeight: "100vh",
         background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 100%)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#fff", fontSize: "14px",
+        color: "#fff", fontSize: "16px",
       }}>
         読み込み中...
       </div>
@@ -45,3 +45,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <Root />
   </React.StrictMode>
 );
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js");
+  });
+}

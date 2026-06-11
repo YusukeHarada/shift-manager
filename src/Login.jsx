@@ -13,7 +13,7 @@ export default function Login() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-    } catch (e) {
+    } catch (_e) {
       setError("メールアドレスまたはパスワードが正しくありません");
     } finally {
       setLoading(false);
