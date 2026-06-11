@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 
@@ -40,7 +40,7 @@ function getAlphaInfo(key) {
   return ALPHA_TYPES.find(a => a.key === key);
 }
 
-function ShiftBadge({ shiftKey, size = "sm" }) {
+const ShiftBadge = memo(function ShiftBadge({ shiftKey, size = "sm" }) {
   const info = getBaseInfo(shiftKey);
   return (
     <span
@@ -50,9 +50,9 @@ function ShiftBadge({ shiftKey, size = "sm" }) {
       {info.key || "－"}
     </span>
   );
-}
+});
 
-function AlphaBadge({ alphaKey }) {
+const AlphaBadge = memo(function AlphaBadge({ alphaKey }) {
   const info = getAlphaInfo(alphaKey);
   if (!info) return null;
   return (
@@ -63,7 +63,7 @@ function AlphaBadge({ alphaKey }) {
       {info.label}
     </span>
   );
-}
+});
 
 function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift, onToggleAlpha, onSave }) {
   const shiftInfo = inputShift ? getBaseInfo(inputShift) : null;
@@ -201,14 +201,14 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
   };
 
   return (
-    <div className="modal-overlay" style={{ position: "fixed" }} onClick={onClose}>
+    <div data-testid="shift-picker-overlay" className="modal-overlay" style={{ position: "fixed" }} onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <p className="modal-title">{day}日のシフトを選択</p>
 
         <div className="modal-section-label">シフト</div>
         <div className="picker-shift-grid">
-          {BASE_SHIFTS.map(s => (
+          {BASE_SHIFTS.filter(s => s.key).map(s => (
             <button
               key={s.key}
               onClick={() => setSelectedBase(s.key)}
@@ -504,6 +504,9 @@ export default function App({ session }) {
   const handleBulkSave = async () => {
     if (!inputShift || selectedDates.size === 0) return;
     const days = Array.from(selectedDates);
+    const prevEntries = {};
+    days.forEach(d => { prevEntries[String(d)] = shifts[String(d)]; });
+
     setShifts(prev => {
       const next = { ...prev };
       days.forEach(d => { next[String(d)] = { base: inputShift, alpha: inputAlpha }; });
@@ -513,13 +516,19 @@ export default function App({ session }) {
     setInputShift("");
     setInputAlpha([]);
     setSaving(true);
-    try {
-      await Promise.all(days.map(d => saveShift(year, month, d, inputShift, inputAlpha)));
-    } catch (e) {
-      setError("保存に失敗しました");
-      console.error(e);
-    } finally {
-      setSaving(false);
+
+    const results = await Promise.allSettled(days.map(d => saveShift(year, month, d, inputShift, inputAlpha)));
+    setSaving(false);
+
+    const failedDays = days.filter((_, i) => results[i].status === "rejected");
+    if (failedDays.length > 0) {
+      setError(`${failedDays.length}件の保存に失敗しました`);
+      setShifts(prev => {
+        const next = { ...prev };
+        failedDays.forEach(d => { next[String(d)] = prevEntries[String(d)]; });
+        return next;
+      });
+      results.forEach((r, i) => { if (r.status === "rejected") console.error(r.reason); });
     }
   };
 
@@ -573,7 +582,7 @@ export default function App({ session }) {
               🕐 時間表
             </button>
 
-            <button onClick={() => exportToICal(year, month, shifts)} className="header-btn header-btn--teal">
+            <button onClick={() => exportToICal(year, month, shifts, UNAME)} className="header-btn header-btn--teal">
               📅 カレンダー出力
             </button>
 
@@ -653,7 +662,7 @@ export default function App({ session }) {
 
             <SummaryCards shifts={shifts} />
 
-            <p className="hint-text">日付をタップしてシフトを入力できます</p>
+            {!inputMode && <p className="hint-text">日付をタップしてシフトを入力できます</p>}
           </>
         )}
       </div>

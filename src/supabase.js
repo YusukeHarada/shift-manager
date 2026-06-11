@@ -3,6 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY;
 
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error("VITE_SUPABASE_URL と VITE_SUPABASE_KEY を .env.local に設定してください");
+}
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 指定月のシフトを全件取得

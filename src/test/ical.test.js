@@ -95,4 +95,19 @@ describe("exportToICal", () => {
     exportToICal(2025, 11, { "1": { base: "早", alpha: [] } });
     expect(mockAnchor.download).toBe("shift_2025_11.ics");
   });
+
+  it("uname引数がDESCRIPTIONに反映される", () => {
+    exportToICal(2025, 11, { "1": { base: "早", alpha: [] } }, "山田 太郎");
+    expect(capturedContent).toContain("DESCRIPTION:山田 太郎 - 早番");
+  });
+
+  it("uname未指定時はデフォルト「ユーザ」が使われる", () => {
+    exportToICal(2025, 11, { "1": { base: "早", alpha: [] } });
+    expect(capturedContent).toContain("DESCRIPTION:ユーザ - 早番");
+  });
+
+  it("αオプションあり時もuname引数がDESCRIPTIONに反映される", () => {
+    exportToICal(2025, 11, { "1": { base: "早", alpha: ["残"] } }, "鈴木 花子");
+    expect(capturedContent).toContain("DESCRIPTION:鈴木 花子 - 早番（残業）");
+  });
 });

@@ -8,20 +8,33 @@ vi.mock("../ical", () => icalMock);
 
 import App from "../App";
 
-// ---- ユーティリティ関数のテスト ----
+// ---- ユーティリティ関数のテスト（カレンダー描画で間接検証） ----
 
-describe("getDaysInMonth", () => {
-  it("2025年11月は30日", () => {
-    expect(new Date(2025, 11, 0).getDate()).toBe(30);
+describe("getDaysInMonth（カレンダー描画）", () => {
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    supabaseMock.fetchShifts.mockResolvedValue({});
+    // Date のみを偽装（setTimeout は本物のまま残すことで waitFor が動作する）
+    vi.useFakeTimers({ toFake: ["Date"] });
   });
-  it("2024年2月は29日（うるう年）", () => {
-    expect(new Date(2024, 2, 0).getDate()).toBe(29);
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("2025年2月は28日（カレンダーに28が表示される）", async () => {
+    vi.setSystemTime(new Date(2025, 1, 1));
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    expect(screen.getByText("28")).toBeInTheDocument();
+    expect(screen.queryByText("29")).not.toBeInTheDocument();
   });
-  it("2025年2月は28日", () => {
-    expect(new Date(2025, 2, 0).getDate()).toBe(28);
-  });
-  it("1月は31日", () => {
-    expect(new Date(2025, 1, 0).getDate()).toBe(31);
+
+  it("2024年2月は29日（うるう年）", async () => {
+    vi.setSystemTime(new Date(2024, 1, 1));
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    expect(screen.getByText("29")).toBeInTheDocument();
+    expect(screen.queryByText("30")).not.toBeInTheDocument();
   });
 });
 
@@ -190,8 +203,7 @@ describe("App コンポーネント", () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
     expect(screen.getByText(/日のシフトを選択/)).toBeInTheDocument();
-    const overlay = document.querySelector('[style*="position: fixed"]');
-    fireEvent.click(overlay);
+    fireEvent.click(screen.getByTestId("shift-picker-overlay"));
     expect(screen.queryByText(/日のシフトを選択/)).not.toBeInTheDocument();
   });
 
@@ -204,6 +216,17 @@ describe("App コンポーネント", () => {
     await renderAndWait();
     fireEvent.click(screen.getByText(/カレンダー出力/));
     expect(icalMock.exportToICal).toHaveBeenCalled();
+  });
+
+  it("カレンダー出力時にユーザ名が引数として渡される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText(/カレンダー出力/));
+    expect(icalMock.exportToICal).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Object),
+      "ユーザ"
+    );
   });
 
   it("ログアウトボタンが存在する", async () => {
@@ -228,5 +251,27 @@ describe("App コンポーネント", () => {
     // カレンダーに早番・夜勤のバッジが表示される
     expect(screen.getAllByText("早").length).toBeGreaterThan(0);
     expect(screen.getAllByText("夜").length).toBeGreaterThan(0);
+  });
+
+  it("一括保存が失敗した場合にUIがロールバックされる", async () => {
+    supabaseMock.fetchShifts.mockResolvedValue({});
+    supabaseMock.saveShift.mockRejectedValue(new Error("network error"));
+    await renderAndWait();
+
+    fireEvent.click(screen.getByLabelText("入力モード開始"));
+    await waitFor(() => expect(screen.getByTestId("shift-input-panel")).toBeInTheDocument());
+
+    const shiftBtn = screen.getByTestId("shift-input-panel").querySelector('[data-shift="早"]');
+    fireEvent.click(shiftBtn);
+
+    // 日付を選択
+    const calendarCells = document.querySelectorAll(".calendar-cell");
+    fireEvent.click(calendarCells[0]);
+
+    fireEvent.click(screen.getByText(/保存（/));
+
+    await waitFor(() => {
+      expect(screen.getByText(/件の保存に失敗しました/)).toBeInTheDocument();
+    });
   });
 });

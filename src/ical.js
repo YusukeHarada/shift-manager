@@ -29,7 +29,7 @@ function makeUid(year, month, day, suffix = "") {
   return suffix ? `${base}-${suffix}@shift-manager` : `${base}@shift-manager`;
 }
 
-export function exportToICal(year, month, shifts) {
+export function exportToICal(year, month, shifts, uname = "ユーザ") {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -55,7 +55,7 @@ export function exportToICal(year, month, shifts) {
       lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
       lines.push(`DTEND;VALUE=DATE:${dateStr}`);
       lines.push(`SUMMARY:${label}`);
-      lines.push(`DESCRIPTION:原田 真依 - ${label}`);
+      lines.push(`DESCRIPTION:${uname} - ${label}`);
       lines.push("END:VEVENT");
     } else {
       // αオプションあり → ベース単体は出さず「早番（残業）」形式のみ出力
@@ -66,7 +66,7 @@ export function exportToICal(year, month, shifts) {
         lines.push(`DTSTART;VALUE=DATE:${dateStr}`);
         lines.push(`DTEND;VALUE=DATE:${dateStr}`);
         lines.push(`SUMMARY:${label}（${alphaLabel}）`);
-        lines.push(`DESCRIPTION:原田 真依 - ${label}（${alphaLabel}）`);
+        lines.push(`DESCRIPTION:${uname} - ${label}（${alphaLabel}）`);
         lines.push("END:VEVENT");
       }
     }
