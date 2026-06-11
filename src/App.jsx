@@ -111,7 +111,7 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
             className="input-panel__shift-btn"
             style={{
               borderColor: s.key === inputShift ? s.color : "#e2e8f0",
-              background: s.key === inputShift ? s.bg : "#f8fafc",
+              background: s.key === inputShift ? s.bg : "var(--color-cell-bg)",
               color: s.color,
             }}
           >
@@ -132,7 +132,7 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
               className="input-panel__alpha-btn"
               style={{
                 borderColor: active ? a.color : "#e2e8f0",
-                background: active ? a.bg : "#f8fafc",
+                background: active ? a.bg : "var(--color-cell-bg)",
                 color: a.color,
               }}
             >
@@ -215,7 +215,7 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
               className="picker-shift-btn"
               style={{
                 borderColor: s.key === selectedBase ? s.color : "#e2e8f0",
-                background: s.key === selectedBase ? s.bg : "#f8fafc",
+                background: s.key === selectedBase ? s.bg : "var(--color-cell-bg)",
                 color: s.color,
               }}
             >
@@ -235,7 +235,7 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
                 className="picker-alpha-btn"
                 style={{
                   borderColor: active ? a.color : "#e2e8f0",
-                  background: active ? a.bg : "#f8fafc",
+                  background: active ? a.bg : "var(--color-cell-bg)",
                   color: a.color,
                 }}
               >
@@ -295,7 +295,7 @@ function CalendarView({ year, month, shifts, onDayClick, inputMode = false, sele
               onClick={() => onDayClick(d)}
               className={cellClass}
               style={{
-                background: isSelected ? "#fff5f5" : shiftKey ? info.bg : "#f8fafc",
+                background: isSelected ? "var(--color-danger-light)" : shiftKey ? info.bg : "var(--color-cell-bg)",
               }}
             >
               {isToday ? (
@@ -351,7 +351,7 @@ function ListView({ year, month, shifts, onDayClick }) {
             key={d}
             onClick={() => onDayClick(d)}
             className={`list-item ${isToday ? "list-item--today" : ""}`}
-            style={{ background: isToday ? "#eff6ff" : shiftKey ? info.bg : "#f8fafc" }}
+            style={{ background: shiftKey ? info.bg : "var(--color-cell-bg)" }}
           >
             <span
               className="list-item__day"
@@ -426,7 +426,7 @@ function SummaryCards({ shifts }) {
   );
 }
 
-export default function App({ session }) {
+export default function App({ session: _session }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -528,7 +528,7 @@ export default function App({ session }) {
         failedDays.forEach(d => { next[String(d)] = prevEntries[String(d)]; });
         return next;
       });
-      results.forEach((r, i) => { if (r.status === "rejected") console.error(r.reason); });
+      results.forEach((r) => { if (r.status === "rejected") console.error(r.reason); });
     }
   };
 
@@ -559,7 +559,7 @@ export default function App({ session }) {
   const pickerEntry = picker ? (shifts[String(picker)] || {}) : null;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--color-bg)", paddingBottom: "20px" }}>
+    <div style={{ minHeight: "100dvh", background: "var(--color-bg)" }}>
       {/* ヘッダー */}
       <header className="app-header">
         <div className="app-header__top">
