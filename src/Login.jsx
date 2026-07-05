@@ -25,7 +25,12 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-icon">📅</div>
+        <div className="login-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="5" width="18" height="16" rx="3" />
+            <path d="M8 3v4M16 3v4M3 10h18" />
+          </svg>
+        </div>
         <div className="login-title">シフト管理</div>
         <div className="login-subtitle">ログインしてください</div>
 

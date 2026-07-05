@@ -26,10 +26,10 @@ function Root() {
   if (session === undefined) {
     return (
       <div style={{
-        minHeight: "100vh",
-        background: "linear-gradient(160deg, #0f172a 0%, #1e3a5f 100%)",
+        minHeight: "100dvh",
+        background: "var(--color-bg)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#fff", fontSize: "16px",
+        color: "var(--color-text-muted)", fontSize: "16px",
       }}>
         読み込み中...
       </div>
