@@ -24,6 +24,73 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const UNAME = import.meta.env.VITE_USER_NAME || "ユーザ";
 
+const ICON_PROPS = {
+  width: 20,
+  height: 20,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+};
+
+function IconCalendar() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="3" y="5" width="18" height="16" rx="3" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
+    </svg>
+  );
+}
+
+function IconList() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M8 6h13M8 12h13M8 18h13" />
+      <circle cx="3.5" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="3.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="3.5" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function IconClock() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
+    </svg>
+  );
+}
+
+function IconEdit() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
+function IconDownload() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  );
+}
+
+function IconLogOut() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5M21 12H9" />
+    </svg>
+  );
+}
+
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
@@ -158,7 +225,7 @@ function BottomNav({ inputMode, onToggleInput, onShowWorkTable, onExportICal, on
   return (
     <nav className="bottom-nav">
       <button onClick={onShowWorkTable} className="bottom-nav__btn">
-        <span className="bottom-nav__icon">🕐</span>
+        <span className="bottom-nav__icon"><IconClock /></span>
         <span className="bottom-nav__label">時間表</span>
       </button>
       <button
@@ -166,15 +233,15 @@ function BottomNav({ inputMode, onToggleInput, onShowWorkTable, onExportICal, on
         className={`bottom-nav__btn${inputMode ? " bottom-nav__btn--active" : ""}`}
         aria-label={inputMode ? "入力モード終了" : "入力モード開始"}
       >
-        <span className="bottom-nav__icon">✏️</span>
+        <span className="bottom-nav__icon"><IconEdit /></span>
         <span className="bottom-nav__label">{inputMode ? "入力中" : "入力"}</span>
       </button>
       <button onClick={onExportICal} className="bottom-nav__btn">
-        <span className="bottom-nav__icon">📅</span>
+        <span className="bottom-nav__icon"><IconDownload /></span>
         <span className="bottom-nav__label">出力</span>
       </button>
       <button onClick={onSignOut} className="bottom-nav__btn">
-        <span className="bottom-nav__icon">🚪</span>
+        <span className="bottom-nav__icon"><IconLogOut /></span>
         <span className="bottom-nav__label">ログアウト</span>
       </button>
     </nav>
@@ -619,7 +686,7 @@ export default function App({ session: _session }) {
           <>
             {nextWork && (
               <div className="next-shift-card">
-                <span className="next-shift-card__icon">📅</span>
+                <span className="next-shift-card__icon"><IconCalendar /></span>
                 <div>
                   <div className="next-shift-card__label">次の出勤</div>
                   <div className="next-shift-card__content">
@@ -632,12 +699,13 @@ export default function App({ session: _session }) {
             )}
 
             <div className="view-tabs">
-              {[["calendar", "📅 カレンダー"], ["list", "📋 リスト"]].map(([v, label]) => (
+              {[["calendar", "カレンダー", IconCalendar], ["list", "リスト", IconList]].map(([v, label, Icon]) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
                   className={`view-tab ${view === v ? "view-tab--active" : "view-tab--inactive"}`}
                 >
+                  <Icon />
                   {label}
                 </button>
               ))}

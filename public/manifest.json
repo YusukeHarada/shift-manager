@@ -4,8 +4,8 @@
   "description": "介護士向け月次シフト管理アプリ",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f0f4f8",
-  "theme_color": "#0f172a",
+  "background_color": "#f7f5f1",
+  "theme_color": "#7d3345",
   "orientation": "portrait-primary",
   "lang": "ja",
   "icons": [
