@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 
@@ -401,6 +401,22 @@ function CalendarView({ year, month, shifts, onDayClick, inputMode = false, sele
   );
 }
 
+function CalendarSkeleton() {
+  return (
+    <>
+      <p className="loading-state">読み込み中...</p>
+      <div className="card card--padded">
+        <div className="calendar-weekdays">
+          {WEEKDAYS.map(w => <div key={w} className="skeleton-weekday" />)}
+        </div>
+        <div className="calendar-grid">
+          {Array.from({ length: 35 }, (_, i) => <div key={i} className="skeleton-cell" />)}
+        </div>
+      </div>
+    </>
+  );
+}
+
 function ListView({ year, month, shifts, onDayClick }) {
   const days = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
@@ -468,6 +484,11 @@ function SummaryCards({ shifts }) {
 
   if (baseItems.length === 0 && alphaItems.length === 0) return null;
 
+  const maxCount = Math.max(
+    ...baseItems.map(s => baseCounts[s.key]),
+    ...alphaItems.map(a => alphaCounts[a.key]),
+  );
+
   return (
     <div className="summary-section">
       <div className="summary-grid">
@@ -475,12 +496,18 @@ function SummaryCards({ shifts }) {
           <div key={s.key} className="summary-card" style={colorVars(s)}>
             <div className="summary-card__count">{baseCounts[s.key]}</div>
             <div className="summary-card__label">{s.label}</div>
+            <div className="summary-card__bar-track">
+              <div className="summary-card__bar" style={{ width: `${(baseCounts[s.key] / maxCount) * 100}%` }} />
+            </div>
           </div>
         ))}
         {alphaItems.map(a => (
           <div key={a.key} className="summary-card" style={colorVars(a)}>
             <div className="summary-card__count">{alphaCounts[a.key]}</div>
             <div className="summary-card__label">{a.label}</div>
+            <div className="summary-card__bar-track">
+              <div className="summary-card__bar" style={{ width: `${(alphaCounts[a.key] / maxCount) * 100}%` }} />
+            </div>
           </div>
         ))}
       </div>
@@ -503,6 +530,24 @@ export default function App({ session: _session }) {
   const [selectedDates, setSelectedDates] = useState(new Set());
   const [inputShift, setInputShift] = useState("");
   const [inputAlpha, setInputAlpha] = useState([]);
+  const [direction, setDirection] = useState(1);
+  const [toast, setToast] = useState(null);
+
+  const toastTimeoutRef = useRef(null);
+  const touchStartXRef = useRef(null);
+  const justSwipedRef = useRef(false);
+
+  const showToast = useCallback((message) => {
+    setToast(message);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 1800);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
 
   const loadShifts = useCallback(async () => {
     setLoading(true);
@@ -528,6 +573,7 @@ export default function App({ session: _session }) {
     setSaving(true);
     try {
       await saveShift(year, month, day, base, alpha);
+      showToast("保存しました");
     } catch (e) {
       setError("保存に失敗しました");
       setShifts(s => ({ ...s, [String(day)]: prev }));
@@ -591,21 +637,39 @@ export default function App({ session: _session }) {
         return next;
       });
       results.forEach((r) => { if (r.status === "rejected") console.error(r.reason); });
+    } else {
+      showToast("保存しました");
     }
   };
 
   const handleDayClick = (day) => {
+    if (justSwipedRef.current) { justSwipedRef.current = false; return; }
     if (inputMode) toggleDateSelection(day);
     else setPicker(day);
   };
 
   const prevMonth = () => {
+    setDirection(-1);
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
     else setMonth(m => m - 1);
   };
   const nextMonth = () => {
+    setDirection(1);
     if (month === 12) { setYear(y => y + 1); setMonth(1); }
     else setMonth(m => m + 1);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e) => {
+    if (touchStartXRef.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (Math.abs(deltaX) < 50) return;
+    justSwipedRef.current = true;
+    if (deltaX > 0) prevMonth();
+    else nextMonth();
   };
 
   let nextWork = null;
@@ -641,14 +705,15 @@ export default function App({ session: _session }) {
       <div className="page-content">
         {error && (
           <div className="error-banner">
-            {error}
-            <button className="error-banner__close" onClick={() => setError(null)}>×</button>
+            <span>{error}</span>
+            <div className="error-banner__actions">
+              <button className="error-banner__retry" onClick={loadShifts}>再読み込み</button>
+              <button className="error-banner__close" onClick={() => setError(null)}>×</button>
+            </div>
           </div>
         )}
 
-        {loading && (
-          <div className="loading-state">読み込み中...</div>
-        )}
+        {loading && <CalendarSkeleton />}
 
         {!loading && (
           <>
@@ -690,11 +755,18 @@ export default function App({ session: _session }) {
               />
             )}
 
-            <div className="card card--padded" style={{ marginBottom: "12px" }}>
-              {view === "calendar"
-                ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} inputMode={inputMode} selectedDates={selectedDates} />
-                : <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} />
-              }
+            <div
+              className="card card--padded"
+              style={{ marginBottom: "12px" }}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              <div key={`${year}-${month}-${view}`} className={`month-transition${direction < 0 ? " month-transition--backward" : ""}`}>
+                {view === "calendar"
+                  ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} inputMode={inputMode} selectedDates={selectedDates} />
+                  : <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} />
+                }
+              </div>
             </div>
 
             <SummaryCards shifts={shifts} />
@@ -703,6 +775,8 @@ export default function App({ session: _session }) {
           </>
         )}
       </div>
+
+      {toast && <div className="toast" role="status">{toast}</div>}
 
       <WorkTimeModal open={showWorkTable} onClose={() => setShowWorkTable(false)} />
 

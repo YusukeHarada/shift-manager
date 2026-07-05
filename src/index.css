@@ -4,6 +4,15 @@
   padding: 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 :root {
   --font-sans: 'Zen Kaku Gothic New', -apple-system, 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
 
@@ -97,6 +106,12 @@ button {
 button:active {
   transform: scale(0.97);
   opacity: 0.9;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 input {
@@ -294,6 +309,24 @@ input {
   align-items: center;
 }
 
+.error-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.error-banner__retry {
+  background: none;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  min-height: 32px;
+}
+
 .error-banner__close {
   background: none;
   border: none;
@@ -310,9 +343,9 @@ input {
 
 .loading-state {
   text-align: center;
-  padding: 40px;
   color: var(--color-text-muted);
-  font-size: 16px;
+  font-size: 13px;
+  margin-bottom: 10px;
 }
 
 .saving-indicator {
@@ -324,6 +357,70 @@ input {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+/* Skeleton loading */
+.skeleton-weekday {
+  height: 14px;
+  margin: 5px auto;
+  width: 60%;
+  border-radius: 4px;
+  background: var(--color-border);
+  opacity: 0.6;
+}
+
+.skeleton-cell {
+  min-height: 54px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--color-cell-bg) 25%, var(--color-border) 37%, var(--color-cell-bg) 63%);
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease infinite;
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* Month transition */
+.month-transition {
+  animation: monthSlideForward 0.22s ease;
+}
+
+.month-transition--backward {
+  animation-name: monthSlideBackward;
+}
+
+@keyframes monthSlideForward {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes monthSlideBackward {
+  from { transform: translateX(-16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + var(--safe-bottom));
+  transform: translateX(-50%);
+  background: var(--color-success);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-md);
+  z-index: 600;
+  animation: toastIn 0.2s ease;
+}
+
+@keyframes toastIn {
+  from { transform: translateX(-50%) translateY(8px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
 /* Calendar */
@@ -606,6 +703,26 @@ input {
   .summary-card__count,
   .summary-card__label {
     color: var(--scd);
+  }
+}
+
+.summary-card__bar-track {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.summary-card__bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--sc);
+}
+
+@media (prefers-color-scheme: dark) {
+  .summary-card__bar {
+    background: var(--scd);
   }
 }
 
