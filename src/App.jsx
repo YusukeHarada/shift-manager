@@ -3,22 +3,28 @@ import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 
 const BASE_SHIFTS = [
-  { key: "日",  label: "日勤",     color: "#16a34a", bg: "#f0fdf4", start: "8:45",  end: "17:30" },
-  { key: "早1", label: "早番1",    color: "#1d6fb7", bg: "#eff6ff", start: "7:00",  end: "15:45" },
-  { key: "早",  label: "早番",     color: "#2563eb", bg: "#dbeafe", start: "7:30",  end: "16:15" },
-  { key: "遅",  label: "遅番",     color: "#d97706", bg: "#fffbeb", start: "10:15", end: "19:00" },
-  { key: "夜",  label: "夜勤",     color: "#7c3aed", bg: "#f5f3ff", start: "16:30", end: "翌9:30" },
-  { key: "明",  label: "明け休み", color: "#9333ea", bg: "#fdf4ff" },
-  { key: "当",  label: "当直",     color: "#0d9488", bg: "#f0fdfa", start: "19:00", end: "翌7:00" },
-  { key: "休",  label: "休み",     color: "#94a3b8", bg: "#f8fafc" },
-  { key: "",    label: "未入力",   color: "#cbd5e1", bg: "#f8fafc" },
+  { key: "日",  label: "日勤",     color: "#16a34a", bg: "#f0fdf4", darkColor: "#4ade80", darkBg: "#15291d", start: "8:45",  end: "17:30" },
+  { key: "早1", label: "早番1",    color: "#1d6fb7", bg: "#eff6ff", darkColor: "#38bdf8", darkBg: "#12293b", start: "7:00",  end: "15:45" },
+  { key: "早",  label: "早番",     color: "#2563eb", bg: "#dbeafe", darkColor: "#818cf8", darkBg: "#1e2142", start: "7:30",  end: "16:15" },
+  { key: "遅",  label: "遅番",     color: "#d97706", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
+  { key: "夜",  label: "夜勤",     color: "#7c3aed", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a", start: "16:30", end: "翌9:30" },
+  { key: "明",  label: "明け休み", color: "#9333ea", bg: "#fdf4ff", darkColor: "#d8b4fe", darkBg: "#331f47" },
+  { key: "当",  label: "当直",     color: "#0d9488", bg: "#f0fdfa", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
+  { key: "休",  label: "休み",     color: "#94a3b8", bg: "#f8fafc", darkColor: "#9aa5b1", darkBg: "#262b33" },
+  { key: "",    label: "未入力",   color: "#cbd5e1", bg: "#f8fafc", darkColor: "#6b7280", darkBg: "#23262b" },
 ];
 
 const ALPHA_TYPES = [
-  { key: "残", label: "残業", color: "#dc2626", bg: "#fef2f2" },
-  { key: "会", label: "会議", color: "#d97706", bg: "#fffbeb" },
-  { key: "当", label: "当直", color: "#7c3aed", bg: "#f5f3ff" },
+  { key: "残", label: "残業", color: "#dc2626", bg: "#fef2f2", darkColor: "#f87171", darkBg: "#3a1a17" },
+  { key: "会", label: "会議", color: "#d97706", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10" },
+  { key: "当", label: "当直", color: "#7c3aed", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a" },
 ];
+
+// ダークモードでは prefers-color-scheme に応じて CSS 側で --sc/--sbg を
+// --scd/--sbgd に切り替えるため、実際の color/background は CSS 側で決定する
+function colorVars(info) {
+  return { "--sc": info.color, "--scd": info.darkColor, "--sbg": info.bg, "--sbgd": info.darkBg };
+}
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -112,7 +118,7 @@ const ShiftBadge = memo(function ShiftBadge({ shiftKey, size = "sm" }) {
   return (
     <span
       className={`shift-badge shift-badge--${size}`}
-      style={{ background: info.bg, color: info.color, borderColor: info.color }}
+      style={colorVars(info)}
     >
       {info.key || "－"}
     </span>
@@ -125,7 +131,7 @@ const AlphaBadge = memo(function AlphaBadge({ alphaKey }) {
   return (
     <span
       className="alpha-badge"
-      style={{ background: info.bg, color: info.color, borderColor: info.color }}
+      style={colorVars(info)}
     >
       {info.label}
     </span>
@@ -139,30 +145,21 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
       <div className="input-panel__summary">
         <span>選択中：</span>
         {shiftInfo
-          ? <span data-testid="selected-shift-label" style={{
-              fontSize: "12px", fontWeight: "700",
-              color: shiftInfo.color, background: shiftInfo.bg,
-              border: `1px solid ${shiftInfo.color}`,
-              borderRadius: "6px", padding: "2px 8px",
-            }}>{shiftInfo.label}</span>
-          : <span style={{ color: "#cbd5e1" }}>シフト未選択</span>
+          ? <span data-testid="selected-shift-label" className="input-panel__selected-shift" style={colorVars(shiftInfo)}>{shiftInfo.label}</span>
+          : <span className="input-panel__placeholder">シフト未選択</span>
         }
         {inputAlpha.length > 0 && (
           <span data-testid="selected-alpha-label" style={{ display: "flex", gap: "4px" }}>
             {inputAlpha.map(k => {
               const a = ALPHA_TYPES.find(x => x.key === k);
               return a ? (
-                <span key={k} style={{
-                  fontSize: "11px", fontWeight: "700", color: a.color,
-                  background: a.bg, border: `1px solid ${a.color}`,
-                  borderRadius: "4px", padding: "1px 5px",
-                }}>{a.label}</span>
+                <span key={k} className="input-panel__selected-alpha" style={colorVars(a)}>{a.label}</span>
               ) : null;
             })}
           </span>
         )}
         <span style={{ marginLeft: "auto" }}>
-          日付：<span data-testid="selected-dates-count" style={{ fontWeight: "700", color: "#ef4444" }}>
+          日付：<span data-testid="selected-dates-count" className="input-panel__count">
             {selectedDates.size}
           </span>件
         </span>
@@ -175,12 +172,8 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
             key={s.key}
             data-shift={s.key}
             onClick={() => onSelectShift(s.key)}
-            className="input-panel__shift-btn"
-            style={{
-              borderColor: s.key === inputShift ? s.color : "#e2e8f0",
-              background: s.key === inputShift ? s.bg : "var(--color-cell-bg)",
-              color: s.color,
-            }}
+            className={`input-panel__shift-btn${s.key === inputShift ? " input-panel__shift-btn--active" : ""}`}
+            style={colorVars(s)}
           >
             {s.label}
           </button>
@@ -196,12 +189,8 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
               key={a.key}
               data-alpha={a.key}
               onClick={() => onToggleAlpha(a.key)}
-              className="input-panel__alpha-btn"
-              style={{
-                borderColor: active ? a.color : "#e2e8f0",
-                background: active ? a.bg : "var(--color-cell-bg)",
-                color: a.color,
-              }}
+              className={`input-panel__alpha-btn${active ? " input-panel__alpha-btn--active" : ""}`}
+              style={colorVars(a)}
             >
               {a.label}
             </button>
@@ -212,8 +201,7 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
       <button
         data-action="save"
         onClick={onSave}
-        className="input-panel__save-btn"
-        style={{ background: inputShift && selectedDates.size > 0 ? "#ef4444" : "#cbd5e1" }}
+        className={`input-panel__save-btn${inputShift && selectedDates.size > 0 ? " input-panel__save-btn--active" : ""}`}
       >
         保存（{selectedDates.size}件）
       </button>
@@ -266,7 +254,7 @@ function WorkTimeModal({ open, onClose }) {
           <tbody>
             {rows.map(s => (
               <tr key={s.key}>
-                <td style={{ color: s.color, fontWeight: "700" }}>{s.label}</td>
+                <td className="work-table__label" style={colorVars(s)}>{s.label}</td>
                 <td>{s.start}</td>
                 <td>{s.end}</td>
               </tr>
@@ -306,12 +294,8 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
             <button
               key={s.key}
               onClick={() => setSelectedBase(s.key)}
-              className="picker-shift-btn"
-              style={{
-                borderColor: s.key === selectedBase ? s.color : "#e2e8f0",
-                background: s.key === selectedBase ? s.bg : "var(--color-cell-bg)",
-                color: s.color,
-              }}
+              className={`picker-shift-btn${s.key === selectedBase ? " picker-shift-btn--active" : ""}`}
+              style={colorVars(s)}
             >
               {s.label}
             </button>
@@ -326,12 +310,8 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
               <button
                 key={a.key}
                 onClick={() => toggleAlpha(a.key)}
-                className="picker-alpha-btn"
-                style={{
-                  borderColor: active ? a.color : "#e2e8f0",
-                  background: active ? a.bg : "var(--color-cell-bg)",
-                  color: a.color,
-                }}
+                className={`picker-alpha-btn${active ? " picker-alpha-btn--active" : ""}`}
+                style={colorVars(a)}
               >
                 {a.label}
               </button>
@@ -362,7 +342,7 @@ function CalendarView({ year, month, shifts, onDayClick, inputMode = false, sele
           <div
             key={w}
             className="calendar-weekday"
-            style={{ color: i === 0 ? "#ef4444" : i === 6 ? "#2563eb" : "#94a3b8" }}
+            style={{ color: i === 0 ? "var(--color-sunday)" : i === 6 ? "var(--color-saturday)" : "var(--color-text-muted)" }}
           >
             {w}
           </div>
@@ -380,6 +360,7 @@ function CalendarView({ year, month, shifts, onDayClick, inputMode = false, sele
           const isSelected = inputMode && selectedDates.has(d);
 
           let cellClass = "calendar-cell";
+          if (shiftKey) cellClass += " calendar-cell--filled";
           if (isSelected) cellClass += " calendar-cell--selected";
           else if (isToday) cellClass += " calendar-cell--today";
 
@@ -388,26 +369,20 @@ function CalendarView({ year, month, shifts, onDayClick, inputMode = false, sele
               key={d}
               onClick={() => onDayClick(d)}
               className={cellClass}
-              style={{
-                background: isSelected ? "var(--color-danger-light)" : shiftKey ? info.bg : "var(--color-cell-bg)",
-              }}
+              style={shiftKey ? colorVars(info) : undefined}
             >
               {isToday ? (
                 <span className="calendar-cell__day calendar-cell__day--today">{d}</span>
               ) : (
                 <span
                   className="calendar-cell__day"
-                  style={{ color: dow === 0 ? "#ef4444" : dow === 6 ? "#2563eb" : "#475569" }}
+                  style={{ color: dow === 0 ? "var(--color-sunday)" : dow === 6 ? "var(--color-saturday)" : "var(--color-text-secondary)" }}
                 >
                   {d}
                 </span>
               )}
               {shiftKey ? (
-                <span style={{
-                  fontSize: "10px", fontWeight: "700", color: info.color,
-                  background: info.bg, border: `1px solid ${info.color}`,
-                  borderRadius: "4px", padding: "1px 4px",
-                }}>
+                <span className="calendar-cell__shift" style={colorVars(info)}>
                   {info.key}
                 </span>
               ) : (
@@ -440,22 +415,23 @@ function ListView({ year, month, shifts, onDayClick }) {
         const alphaKeys = entry.alpha || [];
         const info = getBaseInfo(shiftKey);
         const isToday = today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === d;
+        const itemClass = `list-item${shiftKey ? " list-item--filled" : ""}${isToday ? " list-item--today" : ""}`;
         return (
           <div
             key={d}
             onClick={() => onDayClick(d)}
-            className={`list-item ${isToday ? "list-item--today" : ""}`}
-            style={{ background: shiftKey ? info.bg : "var(--color-cell-bg)" }}
+            className={itemClass}
+            style={shiftKey ? colorVars(info) : undefined}
           >
             <span
               className="list-item__day"
-              style={{ color: dow === 0 ? "#ef4444" : dow === 6 ? "#2563eb" : "#1e293b" }}
+              style={{ color: dow === 0 ? "var(--color-sunday)" : dow === 6 ? "var(--color-saturday)" : "var(--color-text)" }}
             >
               {d}
             </span>
             <span
               className="list-item__dow"
-              style={{ color: dow === 0 ? "#ef4444" : dow === 6 ? "#2563eb" : "#94a3b8" }}
+              style={{ color: dow === 0 ? "var(--color-sunday)" : dow === 6 ? "var(--color-saturday)" : "var(--color-text-muted)" }}
             >
               {WEEKDAYS[dow]}
             </span>
@@ -496,23 +472,15 @@ function SummaryCards({ shifts }) {
     <div className="summary-section">
       <div className="summary-grid">
         {baseItems.map(s => (
-          <div
-            key={s.key}
-            className="summary-card"
-            style={{ background: s.bg, borderColor: s.color }}
-          >
-            <div className="summary-card__count" style={{ color: s.color }}>{baseCounts[s.key]}</div>
-            <div className="summary-card__label" style={{ color: s.color }}>{s.label}</div>
+          <div key={s.key} className="summary-card" style={colorVars(s)}>
+            <div className="summary-card__count">{baseCounts[s.key]}</div>
+            <div className="summary-card__label">{s.label}</div>
           </div>
         ))}
         {alphaItems.map(a => (
-          <div
-            key={a.key}
-            className="summary-card"
-            style={{ background: a.bg, borderColor: a.color }}
-          >
-            <div className="summary-card__count" style={{ color: a.color }}>{alphaCounts[a.key]}</div>
-            <div className="summary-card__label" style={{ color: a.color }}>{a.label}</div>
+          <div key={a.key} className="summary-card" style={colorVars(a)}>
+            <div className="summary-card__count">{alphaCounts[a.key]}</div>
+            <div className="summary-card__label">{a.label}</div>
           </div>
         ))}
       </div>
