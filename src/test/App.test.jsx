@@ -275,3 +275,57 @@ describe("App コンポーネント", () => {
     });
   });
 });
+
+describe("設定パネル（週開始・テーマ）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    document.documentElement.removeAttribute("data-theme");
+    supabaseMock.fetchShifts.mockResolvedValue({});
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 1)); // 2025年11月1日は土曜日
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  const renderAndWait = async () => {
+    render(<App session={mockSession} />);
+    await waitFor(() => {
+      expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+    });
+  };
+
+  it("デフォルトは月曜始まりでカレンダーの1列目が月曜になる", async () => {
+    await renderAndWait();
+    const weekdayEls = document.querySelectorAll(".calendar-weekday");
+    expect(weekdayEls[0].textContent).toBe("月");
+    expect(weekdayEls[6].textContent).toBe("日");
+  });
+
+  it("設定パネルで日曜始まりに切り替えるとカレンダーの列順が変わる", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText("設定"));
+    fireEvent.click(screen.getByText("日曜始まり"));
+
+    const weekdayEls = document.querySelectorAll(".calendar-weekday");
+    expect(weekdayEls[0].textContent).toBe("日");
+    expect(weekdayEls[6].textContent).toBe("土");
+  });
+
+  it("週開始の設定がlocalStorageに保存される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText("設定"));
+    fireEvent.click(screen.getByText("日曜始まり"));
+    expect(localStorage.getItem("shift-manager:weekStart")).toBe("sun");
+  });
+
+  it("テーマを選択するとdata-theme属性が変わりlocalStorageに保存される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText("設定"));
+    fireEvent.click(screen.getByLabelText("オーシャン"));
+
+    expect(document.documentElement.getAttribute("data-theme")).toBe("ocean");
+    expect(localStorage.getItem("shift-manager:theme")).toBe("ocean");
+  });
+});

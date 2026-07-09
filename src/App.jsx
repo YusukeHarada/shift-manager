@@ -28,6 +28,22 @@ function colorVars(info) {
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
+function getWeekdayLabels(weekStart) {
+  const offset = weekStart === "sun" ? 0 : 1;
+  return WEEKDAYS.map((_, i) => WEEKDAYS[(i + offset) % 7]);
+}
+
+const THEMES = [
+  { key: "default", label: "デフォルト", swatch: "#7d3345" },
+  { key: "ocean",    label: "オーシャン", swatch: "#1d6fb7" },
+  { key: "forest",   label: "フォレスト", swatch: "#2f7d4f" },
+  { key: "sunset",   label: "サンセット", swatch: "#d9642a" },
+  { key: "mono",     label: "モノクローム", swatch: "#4b4b4b" },
+];
+
+const WEEK_START_KEY = "shift-manager:weekStart";
+const THEME_KEY = "shift-manager:theme";
+
 const UNAME = import.meta.env.VITE_USER_NAME || "ユーザ";
 
 const ICON_PROPS = {
@@ -97,12 +113,23 @@ function IconLogOut() {
   );
 }
 
+function IconSettings() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
-function getFirstDayOfWeek(year, month) {
-  return new Date(year, month - 1, 1).getDay();
+function getFirstDayOfWeek(year, month, weekStart = "mon") {
+  const dow = new Date(year, month - 1, 1).getDay();
+  const offset = weekStart === "sun" ? 0 : 1;
+  return (dow - offset + 7) % 7;
 }
 
 function getBaseInfo(key) {
@@ -209,7 +236,7 @@ function ShiftInputPanel({ inputShift, inputAlpha, selectedDates, onSelectShift,
   );
 }
 
-function BottomNav({ inputMode, onToggleInput, onShowWorkTable, onExportICal, onSignOut }) {
+function BottomNav({ inputMode, onToggleInput, onShowWorkTable, onExportICal, onShowSettings, onSignOut }) {
   return (
     <nav className="bottom-nav">
       <button onClick={onShowWorkTable} className="bottom-nav__btn">
@@ -228,11 +255,62 @@ function BottomNav({ inputMode, onToggleInput, onShowWorkTable, onExportICal, on
         <span className="bottom-nav__icon"><IconDownload /></span>
         <span className="bottom-nav__label">出力</span>
       </button>
+      <button onClick={onShowSettings} className="bottom-nav__btn">
+        <span className="bottom-nav__icon"><IconSettings /></span>
+        <span className="bottom-nav__label">設定</span>
+      </button>
       <button onClick={onSignOut} className="bottom-nav__btn">
         <span className="bottom-nav__icon"><IconLogOut /></span>
         <span className="bottom-nav__label">ログアウト</span>
       </button>
     </nav>
+  );
+}
+
+function SettingsPanel({ open, weekStart, theme, onChangeWeekStart, onChangeTheme, onClose }) {
+  if (!open) return null;
+  return (
+    <div className="modal-overlay modal-overlay--center" onClick={onClose}>
+      <div className="modal-sheet modal-sheet--dialog" onClick={e => e.stopPropagation()}>
+        <div className="modal-title">設定</div>
+
+        <div className="modal-section-label">週の開始</div>
+        <div className="picker-shift-grid">
+          <button
+            data-week-start="mon"
+            onClick={() => onChangeWeekStart("mon")}
+            className={`picker-shift-btn${weekStart === "mon" ? " picker-shift-btn--active" : ""}`}
+          >
+            月曜始まり
+          </button>
+          <button
+            data-week-start="sun"
+            onClick={() => onChangeWeekStart("sun")}
+            className={`picker-shift-btn${weekStart === "sun" ? " picker-shift-btn--active" : ""}`}
+          >
+            日曜始まり
+          </button>
+        </div>
+
+        <div className="modal-section-label">テーマ</div>
+        <div className="theme-swatch-row">
+          {THEMES.map(t => (
+            <button
+              key={t.key}
+              data-theme-option={t.key}
+              onClick={() => onChangeTheme(t.key)}
+              className={`theme-swatch-btn${theme === t.key ? " theme-swatch-btn--active" : ""}`}
+              aria-label={t.label}
+            >
+              <span className="theme-swatch-btn__color" style={{ background: t.swatch }} />
+              <span className="theme-swatch-btn__label">{t.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <button className="modal-close-btn" onClick={onClose}>閉じる</button>
+      </div>
+    </div>
   );
 }
 
@@ -325,9 +403,11 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
   );
 }
 
-function CalendarView({ year, month, shifts, onDayClick, inputMode = false, selectedDates = new Set() }) {
+function CalendarView({ year, month, shifts, onDayClick, inputMode = false, selectedDates = new Set(), weekStart = "mon" }) {
   const days = getDaysInMonth(year, month);
-  const firstDay = getFirstDayOfWeek(year, month);
+  const firstDay = getFirstDayOfWeek(year, month, weekStart);
+  const offset = weekStart === "sun" ? 0 : 1;
+  const weekdayLabels = getWeekdayLabels(weekStart);
   const today = new Date();
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
 
@@ -338,20 +418,23 @@ function CalendarView({ year, month, shifts, onDayClick, inputMode = false, sele
   return (
     <div>
       <div className="calendar-weekdays">
-        {WEEKDAYS.map((w, i) => (
-          <div
-            key={w}
-            className="calendar-weekday"
-            style={{ color: i === 0 ? "var(--color-sunday)" : i === 6 ? "var(--color-saturday)" : "var(--color-text-muted)" }}
-          >
-            {w}
-          </div>
-        ))}
+        {weekdayLabels.map((w, i) => {
+          const realDow = (i + offset) % 7;
+          return (
+            <div
+              key={`${w}-${i}`}
+              className="calendar-weekday"
+              style={{ color: realDow === 0 ? "var(--color-sunday)" : realDow === 6 ? "var(--color-saturday)" : "var(--color-text-muted)" }}
+            >
+              {w}
+            </div>
+          );
+        })}
       </div>
       <div className="calendar-grid">
         {cells.map((d, i) => {
           if (!d) return <div key={`e${i}`} />;
-          const dow = (firstDay + d - 1) % 7;
+          const dow = (firstDay + d - 1 + offset) % 7;
           const entry = shifts[String(d)] || {};
           const shiftKey = entry.base ?? "";
           const alphaKeys = entry.alpha || [];
@@ -401,13 +484,13 @@ function CalendarView({ year, month, shifts, onDayClick, inputMode = false, sele
   );
 }
 
-function CalendarSkeleton() {
+function CalendarSkeleton({ weekStart = "mon" }) {
   return (
     <>
       <p className="loading-state">読み込み中...</p>
       <div className="card card--padded">
         <div className="calendar-weekdays">
-          {WEEKDAYS.map(w => <div key={w} className="skeleton-weekday" />)}
+          {getWeekdayLabels(weekStart).map((w, i) => <div key={`${w}-${i}`} className="skeleton-weekday" />)}
         </div>
         <div className="calendar-grid">
           {Array.from({ length: 35 }, (_, i) => <div key={i} className="skeleton-cell" />)}
@@ -417,15 +500,16 @@ function CalendarSkeleton() {
   );
 }
 
-function ListView({ year, month, shifts, onDayClick }) {
+function ListView({ year, month, shifts, onDayClick, weekStart = "mon" }) {
   const days = getDaysInMonth(year, month);
-  const firstDay = getFirstDayOfWeek(year, month);
+  const firstDay = getFirstDayOfWeek(year, month, weekStart);
+  const offset = weekStart === "sun" ? 0 : 1;
   const today = new Date();
 
   return (
     <div className="list-view">
       {Array.from({ length: days }, (_, i) => i + 1).map(d => {
-        const dow = (firstDay + d - 1) % 7;
+        const dow = (firstDay + d - 1 + offset) % 7;
         const entry = shifts[String(d)] || {};
         const shiftKey = entry.base ?? "";
         const alphaKeys = entry.alpha || [];
@@ -532,6 +616,18 @@ export default function App({ session: _session }) {
   const [inputAlpha, setInputAlpha] = useState([]);
   const [direction, setDirection] = useState(1);
   const [toast, setToast] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [weekStart, setWeekStart] = useState(() => localStorage.getItem(WEEK_START_KEY) || "mon");
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "default");
+
+  useEffect(() => {
+    localStorage.setItem(WEEK_START_KEY, weekStart);
+  }, [weekStart]);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_KEY, theme);
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
 
   const toastTimeoutRef = useRef(null);
   const touchStartXRef = useRef(null);
@@ -713,7 +809,7 @@ export default function App({ session: _session }) {
           </div>
         )}
 
-        {loading && <CalendarSkeleton />}
+        {loading && <CalendarSkeleton weekStart={weekStart} />}
 
         {!loading && (
           <>
@@ -763,8 +859,8 @@ export default function App({ session: _session }) {
             >
               <div key={`${year}-${month}-${view}`} className={`month-transition${direction < 0 ? " month-transition--backward" : ""}`}>
                 {view === "calendar"
-                  ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} inputMode={inputMode} selectedDates={selectedDates} />
-                  : <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} />
+                  ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} inputMode={inputMode} selectedDates={selectedDates} weekStart={weekStart} />
+                  : <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} weekStart={weekStart} />
                 }
               </div>
             </div>
@@ -779,6 +875,15 @@ export default function App({ session: _session }) {
       {toast && <div className="toast" role="status">{toast}</div>}
 
       <WorkTimeModal open={showWorkTable} onClose={() => setShowWorkTable(false)} />
+
+      <SettingsPanel
+        open={showSettings}
+        weekStart={weekStart}
+        theme={theme}
+        onChangeWeekStart={setWeekStart}
+        onChangeTheme={setTheme}
+        onClose={() => setShowSettings(false)}
+      />
 
       {!inputMode && picker && (
         <ShiftPicker
@@ -795,6 +900,7 @@ export default function App({ session: _session }) {
         onToggleInput={toggleInputMode}
         onShowWorkTable={() => setShowWorkTable(true)}
         onExportICal={() => exportToICal(year, month, shifts, UNAME)}
+        onShowSettings={() => setShowSettings(true)}
         onSignOut={async () => { await supabase.auth.signOut(); }}
       />
     </div>
