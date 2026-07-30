@@ -14,7 +14,8 @@
 }
 
 :root {
-  --font-sans: 'Zen Kaku Gothic New', -apple-system, 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
+  /* Inter を先に置き、英数字は Inter・日本語は Noto Sans JP が担当する */
+  --font-sans: 'Inter', 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
 
   --color-bg: #f7f5f1;
   --color-surface: #ffffff;
