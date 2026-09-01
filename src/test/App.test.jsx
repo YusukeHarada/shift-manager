@@ -129,6 +129,7 @@ describe("App コンポーネント", () => {
     expect(screen.getByText("日勤")).toBeInTheDocument();
     expect(screen.getByText("早番")).toBeInTheDocument();
     expect(screen.getByText("遅番")).toBeInTheDocument();
+    expect(screen.getByText("午後遅番")).toBeInTheDocument();
     expect(screen.getByText("夜勤")).toBeInTheDocument();
     expect(screen.getByText("明け休み")).toBeInTheDocument();
     expect(screen.getByText("休み")).toBeInTheDocument();
@@ -170,6 +171,30 @@ describe("App コンポーネント", () => {
         expect.any(Array)
       );
     });
+  });
+
+  it("午後遅番を選んで保存すると「半遅」キーで保存される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getAllByText("1")[0]);
+    fireEvent.click(screen.getByText("午後遅番"));
+    fireEvent.click(screen.getByText("保存"));
+    await waitFor(() => {
+      expect(supabaseMock.saveShift).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        1,
+        "半遅",
+        expect.any(Array)
+      );
+    });
+  });
+
+  it("勤務時間表に午後遅番の勤務時間が表示される", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getByText("時間表"));
+    const row = screen.getByText("午後遅番").closest("tr");
+    expect(row).toHaveTextContent("13:00");
+    expect(row).toHaveTextContent("19:00");
   });
 
   it("αオプションを複数選択できる", async () => {

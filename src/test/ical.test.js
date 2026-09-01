@@ -81,6 +81,14 @@ describe("exportToICal", () => {
     expect(count).toBe(1);
   });
 
+  it("半遅は「午後遅番」としてSUMMARYに出力される", () => {
+    exportToICal(2025, 11, {
+      "3": { base: "半遅", alpha: [] },
+    });
+
+    expect(capturedContent).toContain("SUMMARY:午後遅番");
+  });
+
   it("日付フォーマットが正しい（YYYYMMDD形式）", () => {
     exportToICal(2025, 11, {
       "5": { base: "遅", alpha: [] },
