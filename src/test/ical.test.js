@@ -81,6 +81,16 @@ describe("exportToICal", () => {
     expect(count).toBe(1);
   });
 
+  it("半休オプションがSUMMARYに反映される", () => {
+    exportToICal(2025, 11, {
+      "3": { base: "遅", alpha: ["前休"] },
+      "4": { base: "日", alpha: ["後休"] },
+    });
+
+    expect(capturedContent).toContain("SUMMARY:遅番（AM休）");
+    expect(capturedContent).toContain("SUMMARY:日勤（PM休）");
+  });
+
   it("日付フォーマットが正しい（YYYYMMDD形式）", () => {
     exportToICal(2025, 11, {
       "5": { base: "遅", alpha: [] },

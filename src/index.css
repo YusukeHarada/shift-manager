@@ -947,14 +947,15 @@ input {
   }
 }
 
+/* 3列固定。折り返した半休（AM休／PM休）が引き伸ばされず横並びになる */
 .input-panel__alpha-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin-bottom: 14px;
 }
 
 .input-panel__alpha-btn {
-  flex: 1;
   padding: 10px 4px;
   border-radius: var(--radius-md);
   font-size: 12px;
@@ -1115,14 +1116,15 @@ input {
   }
 }
 
+/* 3列固定。折り返した半休（AM休／PM休）が引き伸ばされず横並びになる */
 .picker-alpha-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 18px;
 }
 
 .picker-alpha-btn {
-  flex: 1;
   padding: 12px 4px;
   border-radius: var(--radius-md);
   font-size: 13px;
