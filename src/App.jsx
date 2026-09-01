@@ -18,11 +18,11 @@ const ALPHA_TYPES = [
   { key: "残", label: "残業", color: "#dc2626", bg: "#fef2f2", darkColor: "#f87171", darkBg: "#3a1a17" },
   { key: "会", label: "会議", color: "#d97706", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10" },
   { key: "当", label: "当直", color: "#7c3aed", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a" },
-  { key: "前休", label: "午前休", color: "#0891b2", bg: "#ecfeff", darkColor: "#22d3ee", darkBg: "#0e2c33", group: "half" },
-  { key: "後休", label: "午後休", color: "#0284c7", bg: "#f0f9ff", darkColor: "#38bdf8", darkBg: "#0f2739", group: "half" },
+  { key: "前休", label: "AM休", color: "#0891b2", bg: "#ecfeff", darkColor: "#22d3ee", darkBg: "#0e2c33", group: "half" },
+  { key: "後休", label: "PM休", color: "#0284c7", bg: "#f0f9ff", darkColor: "#38bdf8", darkBg: "#0f2739", group: "half" },
 ];
 
-// 半休（午前休／午後休）は同時に成立しないため、同じ group のキーは1つだけ残す
+// 半休（AM休／PM休）は同時に成立しないため、同じ group のキーは1つだけ残す
 function toggleAlphaKey(prev, key) {
   if (prev.includes(key)) return prev.filter(k => k !== key);
   const group = getAlphaInfo(key)?.group;

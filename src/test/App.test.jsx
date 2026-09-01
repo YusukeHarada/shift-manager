@@ -172,18 +172,18 @@ describe("App コンポーネント", () => {
     });
   });
 
-  it("ポップアップに午前休・午後休オプションが表示される", async () => {
+  it("ポップアップにAM休・PM休オプションが表示される", async () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
-    expect(screen.getByText("午前休")).toBeInTheDocument();
-    expect(screen.getByText("午後休")).toBeInTheDocument();
+    expect(screen.getByText("AM休")).toBeInTheDocument();
+    expect(screen.getByText("PM休")).toBeInTheDocument();
   });
 
-  it("遅番＋午前休を保存できる", async () => {
+  it("遅番＋AM休を保存できる", async () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
     fireEvent.click(screen.getByText("遅番"));
-    fireEvent.click(screen.getByText("午前休"));
+    fireEvent.click(screen.getByText("AM休"));
     fireEvent.click(screen.getByText("保存"));
     await waitFor(() => {
       expect(supabaseMock.saveShift).toHaveBeenCalledWith(
@@ -196,12 +196,12 @@ describe("App コンポーネント", () => {
     });
   });
 
-  it("午前休と午後休は排他選択になる", async () => {
+  it("AM休とPM休は排他選択になる", async () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
     fireEvent.click(screen.getByText("日勤"));
-    fireEvent.click(screen.getByText("午前休"));
-    fireEvent.click(screen.getByText("午後休"));
+    fireEvent.click(screen.getByText("AM休"));
+    fireEvent.click(screen.getByText("PM休"));
     fireEvent.click(screen.getByText("保存"));
     await waitFor(() => {
       expect(supabaseMock.saveShift).toHaveBeenCalledWith(
@@ -218,7 +218,7 @@ describe("App コンポーネント", () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
     fireEvent.click(screen.getByText("早番"));
-    fireEvent.click(screen.getByText("午後休"));
+    fireEvent.click(screen.getByText("PM休"));
     fireEvent.click(screen.getByText("会議"));
     fireEvent.click(screen.getByText("保存"));
     await waitFor(() => {

@@ -87,8 +87,8 @@ describe("exportToICal", () => {
       "4": { base: "日", alpha: ["後休"] },
     });
 
-    expect(capturedContent).toContain("SUMMARY:遅番（午前休）");
-    expect(capturedContent).toContain("SUMMARY:日勤（午後休）");
+    expect(capturedContent).toContain("SUMMARY:遅番（AM休）");
+    expect(capturedContent).toContain("SUMMARY:日勤（PM休）");
   });
 
   it("日付フォーマットが正しい（YYYYMMDD形式）", () => {
