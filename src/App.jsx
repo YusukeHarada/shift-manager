@@ -7,8 +7,6 @@ const BASE_SHIFTS = [
   { key: "早1", label: "早番1",    color: "#1d6fb7", bg: "#eff6ff", darkColor: "#38bdf8", darkBg: "#12293b", start: "7:00",  end: "15:45" },
   { key: "早",  label: "早番",     color: "#2563eb", bg: "#dbeafe", darkColor: "#818cf8", darkBg: "#1e2142", start: "7:30",  end: "16:15" },
   { key: "遅",  label: "遅番",     color: "#d97706", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
-  // 午前休みで午後から遅番。開始時刻は暫定値で、確定し次第差し替える
-  { key: "半遅", label: "午後遅番", color: "#ea580c", bg: "#fff7ed", darkColor: "#fb923c", darkBg: "#3a2410", start: "13:00", end: "19:00" },
   { key: "夜",  label: "夜勤",     color: "#7c3aed", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a", start: "16:30", end: "翌9:30" },
   { key: "明",  label: "明け休み", color: "#9333ea", bg: "#fdf4ff", darkColor: "#d8b4fe", darkBg: "#331f47" },
   { key: "当",  label: "当直",     color: "#0d9488", bg: "#f0fdfa", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
@@ -20,7 +18,17 @@ const ALPHA_TYPES = [
   { key: "残", label: "残業", color: "#dc2626", bg: "#fef2f2", darkColor: "#f87171", darkBg: "#3a1a17" },
   { key: "会", label: "会議", color: "#d97706", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10" },
   { key: "当", label: "当直", color: "#7c3aed", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a" },
+  { key: "前休", label: "午前休", color: "#0891b2", bg: "#ecfeff", darkColor: "#22d3ee", darkBg: "#0e2c33", group: "half" },
+  { key: "後休", label: "午後休", color: "#0284c7", bg: "#f0f9ff", darkColor: "#38bdf8", darkBg: "#0f2739", group: "half" },
 ];
+
+// 半休（午前休／午後休）は同時に成立しないため、同じ group のキーは1つだけ残す
+function toggleAlphaKey(prev, key) {
+  if (prev.includes(key)) return prev.filter(k => k !== key);
+  const group = getAlphaInfo(key)?.group;
+  const kept = group ? prev.filter(k => getAlphaInfo(k)?.group !== group) : prev;
+  return [...kept, key];
+}
 
 // ダークモードでは prefers-color-scheme に応じて CSS 側で --sc/--sbg を
 // --scd/--sbgd に切り替えるため、実際の color/background は CSS 側で決定する
@@ -352,9 +360,7 @@ function ShiftPicker({ day, currentBase, currentAlpha, onSelect, onClose }) {
   const [selectedAlpha, setSelectedAlpha] = useState(currentAlpha || []);
 
   const toggleAlpha = (key) => {
-    setSelectedAlpha(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
+    setSelectedAlpha(prev => toggleAlphaKey(prev, key));
   };
 
   const handleSave = () => {
@@ -702,9 +708,7 @@ export default function App({ session: _session }) {
   };
 
   const toggleInputAlpha = (key) => {
-    setInputAlpha(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    );
+    setInputAlpha(prev => toggleAlphaKey(prev, key));
   };
 
   const handleBulkSave = async () => {

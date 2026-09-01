@@ -949,12 +949,13 @@ input {
 
 .input-panel__alpha-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 14px;
 }
 
 .input-panel__alpha-btn {
-  flex: 1;
+  flex: 1 1 68px;
   padding: 10px 4px;
   border-radius: var(--radius-md);
   font-size: 12px;
@@ -1117,12 +1118,13 @@ input {
 
 .picker-alpha-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 18px;
 }
 
 .picker-alpha-btn {
-  flex: 1;
+  flex: 1 1 72px;
   padding: 12px 4px;
   border-radius: var(--radius-md);
   font-size: 13px;

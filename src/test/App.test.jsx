@@ -129,7 +129,6 @@ describe("App コンポーネント", () => {
     expect(screen.getByText("日勤")).toBeInTheDocument();
     expect(screen.getByText("早番")).toBeInTheDocument();
     expect(screen.getByText("遅番")).toBeInTheDocument();
-    expect(screen.getByText("午後遅番")).toBeInTheDocument();
     expect(screen.getByText("夜勤")).toBeInTheDocument();
     expect(screen.getByText("明け休み")).toBeInTheDocument();
     expect(screen.getByText("休み")).toBeInTheDocument();
@@ -173,28 +172,64 @@ describe("App コンポーネント", () => {
     });
   });
 
-  it("午後遅番を選んで保存すると「半遅」キーで保存される", async () => {
+  it("ポップアップに午前休・午後休オプションが表示される", async () => {
     await renderAndWait();
     fireEvent.click(screen.getAllByText("1")[0]);
-    fireEvent.click(screen.getByText("午後遅番"));
+    expect(screen.getByText("午前休")).toBeInTheDocument();
+    expect(screen.getByText("午後休")).toBeInTheDocument();
+  });
+
+  it("遅番＋午前休を保存できる", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getAllByText("1")[0]);
+    fireEvent.click(screen.getByText("遅番"));
+    fireEvent.click(screen.getByText("午前休"));
     fireEvent.click(screen.getByText("保存"));
     await waitFor(() => {
       expect(supabaseMock.saveShift).toHaveBeenCalledWith(
         expect.any(Number),
         expect.any(Number),
         1,
-        "半遅",
-        expect.any(Array)
+        "遅",
+        ["前休"]
       );
     });
   });
 
-  it("勤務時間表に午後遅番の勤務時間が表示される", async () => {
+  it("午前休と午後休は排他選択になる", async () => {
     await renderAndWait();
-    fireEvent.click(screen.getByText("時間表"));
-    const row = screen.getByText("午後遅番").closest("tr");
-    expect(row).toHaveTextContent("13:00");
-    expect(row).toHaveTextContent("19:00");
+    fireEvent.click(screen.getAllByText("1")[0]);
+    fireEvent.click(screen.getByText("日勤"));
+    fireEvent.click(screen.getByText("午前休"));
+    fireEvent.click(screen.getByText("午後休"));
+    fireEvent.click(screen.getByText("保存"));
+    await waitFor(() => {
+      expect(supabaseMock.saveShift).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        1,
+        "日",
+        ["後休"]
+      );
+    });
+  });
+
+  it("半休は残業・会議と併用できる", async () => {
+    await renderAndWait();
+    fireEvent.click(screen.getAllByText("1")[0]);
+    fireEvent.click(screen.getByText("早番"));
+    fireEvent.click(screen.getByText("午後休"));
+    fireEvent.click(screen.getByText("会議"));
+    fireEvent.click(screen.getByText("保存"));
+    await waitFor(() => {
+      expect(supabaseMock.saveShift).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        1,
+        "早",
+        expect.arrayContaining(["後休", "会"])
+      );
+    });
   });
 
   it("αオプションを複数選択できる", async () => {

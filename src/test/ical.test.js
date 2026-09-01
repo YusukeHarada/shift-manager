@@ -81,12 +81,14 @@ describe("exportToICal", () => {
     expect(count).toBe(1);
   });
 
-  it("半遅は「午後遅番」としてSUMMARYに出力される", () => {
+  it("半休オプションがSUMMARYに反映される", () => {
     exportToICal(2025, 11, {
-      "3": { base: "半遅", alpha: [] },
+      "3": { base: "遅", alpha: ["前休"] },
+      "4": { base: "日", alpha: ["後休"] },
     });
 
-    expect(capturedContent).toContain("SUMMARY:午後遅番");
+    expect(capturedContent).toContain("SUMMARY:遅番（午前休）");
+    expect(capturedContent).toContain("SUMMARY:日勤（午後休）");
   });
 
   it("日付フォーマットが正しい（YYYYMMDD形式）", () => {
