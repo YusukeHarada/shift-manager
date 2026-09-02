@@ -138,6 +138,7 @@ Vercel に GitHub リポジトリを連携してデプロイします。
 
 ## ドキュメント
 
+- [変更履歴](CHANGELOG.md) — バージョンごとの変更点
 - [詳細設計書](docs/DESIGN.md) — 機能仕様・データ設計・コンポーネント構成・テスト仕様
 - [C/Python 開発者向けガイド](docs/GUIDE_FOR_C_PYTHON_DEVELOPERS.md) — React/JavaScript の概念を他言語と対比しながら解説
 
