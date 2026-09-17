@@ -2,18 +2,20 @@ import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 
-// color は bg の上で 4.5:1 以上になる濃さに揃えている（薄い塗り＋濃い文字）
+// color は bg の上で 4.5:1 以上になる濃さに揃えている（薄い塗り＋濃い文字）。
+// bg はカレンダーのセル全体を塗るため、月のパターンが一目で掴めるよう
+// 8種が同じくらいの濃さになるよう揃えている
 const BASE_SHIFTS = [
-  { key: "日",  label: "日勤",     color: "#15803d", bg: "#f0fdf4", darkColor: "#4ade80", darkBg: "#15291d", start: "8:45",  end: "17:30" },
-  { key: "早1", label: "早番1",    color: "#175e9e", bg: "#eff6ff", darkColor: "#38bdf8", darkBg: "#12293b", start: "7:00",  end: "15:45" },
-  { key: "早",  label: "早番",     color: "#1d4ed8", bg: "#dbeafe", darkColor: "#818cf8", darkBg: "#1e2142", start: "7:30",  end: "16:15" },
-  { key: "遅",  label: "遅番",     color: "#b45309", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
-  { key: "夜",  label: "夜勤",     color: "#6d28d9", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a", start: "16:30", end: "翌9:30" },
-  { key: "明",  label: "明け休み", color: "#7e22ce", bg: "#fdf4ff", darkColor: "#d8b4fe", darkBg: "#331f47" },
-  { key: "当",  label: "当直",     color: "#0f766e", bg: "#f0fdfa", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
+  { key: "日",  label: "日勤",     color: "#136b33", bg: "#dcf3e4", darkColor: "#4ade80", darkBg: "#15291d", start: "8:45",  end: "17:30" },
+  { key: "早1", label: "早番1",    color: "#175e9e", bg: "#dde9f8", darkColor: "#38bdf8", darkBg: "#12293b", start: "7:00",  end: "15:45" },
+  { key: "早",  label: "早番",     color: "#1d4ed8", bg: "#d6e2fb", darkColor: "#818cf8", darkBg: "#1e2142", start: "7:30",  end: "16:15" },
+  { key: "遅",  label: "遅番",     color: "#99460a", bg: "#fbeed0", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
+  { key: "夜",  label: "夜勤",     color: "#6d28d9", bg: "#e5dffb", darkColor: "#a78bfa", darkBg: "#29214a", start: "16:30", end: "翌9:30" },
+  { key: "明",  label: "明け休み", color: "#7e22ce", bg: "#f2ddfa", darkColor: "#d8b4fe", darkBg: "#331f47" },
+  { key: "当",  label: "当直",     color: "#0f766e", bg: "#d5f0ea", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
   // 休み・未入力は中性色のため、枠線なしでは未入力セルの背景と紛れる。塗りに差をつけている
-  { key: "休",  label: "休み",     color: "#4b5563", bg: "#e6eaf0", darkColor: "#b3bdca", darkBg: "#313a46" },
-  { key: "",    label: "未入力",   color: "#5f6773", bg: "#eef0f3", darkColor: "#8a919c", darkBg: "#2f333a" },
+  { key: "休",  label: "休み",     color: "#4b5563", bg: "#d9e0ea", darkColor: "#b3bdca", darkBg: "#313a46" },
+  { key: "",    label: "未入力",   color: "#5f6773", bg: "#eef0f3", darkColor: "#a5adb9", darkBg: "#2f333a" },
 ];
 
 const ALPHA_TYPES = [
@@ -32,8 +34,7 @@ function toggleAlphaKey(prev, key) {
   return [...kept, key];
 }
 
-// ダークモードでは prefers-color-scheme に応じて CSS 側で --sc/--sbg を
-// --scd/--sbgd に切り替えるため、実際の color/background は CSS 側で決定する
+// 明暗の出し分けは CSS 側の light-dark() が行うため、ここでは両方の値を渡すだけ
 function colorVars(info) {
   return { "--sc": info.color, "--scd": info.darkColor, "--sbg": info.bg, "--sbgd": info.darkBg };
 }
@@ -54,8 +55,15 @@ const THEMES = [
   { key: "mono",     label: "モノクローム", swatch: "#3d3d3d" },
 ];
 
+const MODES = [
+  { key: "auto", label: "自動" },
+  { key: "light", label: "ライト" },
+  { key: "dark", label: "ダーク" },
+];
+
 const WEEK_START_KEY = "shift-manager:weekStart";
 const THEME_KEY = "shift-manager:theme";
+const MODE_KEY = "shift-manager:mode";
 
 const UNAME = import.meta.env.VITE_USER_NAME || "ユーザ";
 
@@ -153,14 +161,15 @@ function getAlphaInfo(key) {
   return ALPHA_TYPES.find(a => a.key === key);
 }
 
-const ShiftBadge = memo(function ShiftBadge({ shiftKey, size = "sm" }) {
+// カレンダーやリストでは幅が無いので略称、余白のある場所では full で正式名称を出す
+const ShiftBadge = memo(function ShiftBadge({ shiftKey, size = "sm", full = false }) {
   const info = getBaseInfo(shiftKey);
   return (
     <span
       className={`shift-badge shift-badge--${size}`}
       style={colorVars(info)}
     >
-      {info.key || "－"}
+      {full ? info.label : (info.key || "－")}
     </span>
   );
 });
@@ -280,12 +289,26 @@ function BottomNav({ inputMode, onToggleInput, onShowWorkTable, onExportICal, on
   );
 }
 
-function SettingsPanel({ open, weekStart, theme, onChangeWeekStart, onChangeTheme, onClose }) {
+function SettingsPanel({ open, weekStart, theme, mode, onChangeWeekStart, onChangeTheme, onChangeMode, onClose }) {
   if (!open) return null;
   return (
     <div className="modal-overlay modal-overlay--center" onClick={onClose}>
       <div className="modal-sheet modal-sheet--dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-title">設定</div>
+
+        <div className="modal-section-label">表示モード</div>
+        <div className="picker-shift-grid">
+          {MODES.map(m => (
+            <button
+              key={m.key}
+              data-mode-option={m.key}
+              onClick={() => onChangeMode(m.key)}
+              className={`picker-shift-btn picker-shift-btn--plain${mode === m.key ? " picker-shift-btn--active" : ""}`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
 
         <div className="modal-section-label">週の開始</div>
         <div className="picker-shift-grid">
@@ -579,31 +602,31 @@ function SummaryCards({ shifts }) {
 
   if (baseItems.length === 0 && alphaItems.length === 0) return null;
 
-  const maxCount = Math.max(
-    ...baseItems.map(s => baseCounts[s.key]),
-    ...alphaItems.map(a => alphaCounts[a.key]),
-  );
+  // バーはベースシフトのみで構成する。αは1日に複数付くため合計が日数と合わない
+  const baseTotal = baseItems.reduce((sum, s) => sum + baseCounts[s.key], 0);
+  const chips = [
+    ...baseItems.map(s => ({ key: `b${s.key}`, info: s, count: baseCounts[s.key] })),
+    ...alphaItems.map(a => ({ key: `a${a.key}`, info: a, count: alphaCounts[a.key] })),
+  ];
 
   return (
     <div className="summary-section">
-      <div className="summary-grid">
+      <div className="summary-bar" role="presentation">
         {baseItems.map(s => (
-          <div key={s.key} className="summary-card" style={colorVars(s)}>
-            <div className="summary-card__count">{baseCounts[s.key]}</div>
-            <div className="summary-card__label">{s.label}</div>
-            <div className="summary-card__bar-track">
-              <div className="summary-card__bar" style={{ width: `${(baseCounts[s.key] / maxCount) * 100}%` }} />
-            </div>
-          </div>
+          <div
+            key={s.key}
+            className="summary-bar__seg"
+            style={{ ...colorVars(s), width: `${(baseCounts[s.key] / baseTotal) * 100}%` }}
+          />
         ))}
-        {alphaItems.map(a => (
-          <div key={a.key} className="summary-card" style={colorVars(a)}>
-            <div className="summary-card__count">{alphaCounts[a.key]}</div>
-            <div className="summary-card__label">{a.label}</div>
-            <div className="summary-card__bar-track">
-              <div className="summary-card__bar" style={{ width: `${(alphaCounts[a.key] / maxCount) * 100}%` }} />
-            </div>
-          </div>
+      </div>
+      <div className="summary-chips">
+        {chips.map(c => (
+          <span key={c.key} className="summary-chip" style={colorVars(c.info)}>
+            <span className="summary-chip__dot" />
+            {c.info.label}
+            <span className="summary-chip__count">{c.count}</span>
+          </span>
         ))}
       </div>
     </div>
@@ -630,6 +653,7 @@ export default function App({ session: _session }) {
   const [showSettings, setShowSettings] = useState(false);
   const [weekStart, setWeekStart] = useState(() => localStorage.getItem(WEEK_START_KEY) || "mon");
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "default");
+  const [mode, setMode] = useState(() => localStorage.getItem(MODE_KEY) || "auto");
 
   useEffect(() => {
     localStorage.setItem(WEEK_START_KEY, weekStart);
@@ -639,6 +663,13 @@ export default function App({ session: _session }) {
     localStorage.setItem(THEME_KEY, theme);
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // 自動は data-mode を外す。CSS 側の color-scheme が OS の設定に従う
+  useEffect(() => {
+    localStorage.setItem(MODE_KEY, mode);
+    if (mode === "auto") document.documentElement.removeAttribute("data-mode");
+    else document.documentElement.setAttribute("data-mode", mode);
+  }, [mode]);
 
   const toastTimeoutRef = useRef(null);
   const touchStartXRef = useRef(null);
@@ -783,7 +814,17 @@ export default function App({ session: _session }) {
     for (let d = today.getDate(); d <= days; d++) {
       const entry = shifts[String(d)];
       const base = entry?.base;
-      if (base && base !== "休") { nextWork = { day: d, base, alpha: entry.alpha || [] }; break; }
+      if (base && base !== "休") {
+        const info = getBaseInfo(base);
+        nextWork = {
+          day: d,
+          base,
+          alpha: entry.alpha || [],
+          dow: WEEKDAYS[new Date(year, month - 1, d).getDay()],
+          time: info.start && info.end ? `${info.start} 〜 ${info.end}` : null,
+        };
+        break;
+      }
     }
   }
 
@@ -824,15 +865,19 @@ export default function App({ session: _session }) {
           <>
             {nextWork && (
               <div className="next-shift-card">
-                <span className="next-shift-card__icon"><IconCalendar /></span>
-                <div>
-                  <div className="next-shift-card__label">次の出勤</div>
-                  <div className="next-shift-card__content">
-                    {month}月{nextWork.day}日
-                    <ShiftBadge shiftKey={nextWork.base} size="md" />
-                    {nextWork.alpha.map(k => <AlphaBadge key={k} alphaKey={k} />)}
-                  </div>
+                <div className="next-shift-card__label">次の出勤</div>
+                <div className="next-shift-card__content">
+                  <span className="next-shift-card__date">{month}月{nextWork.day}日</span>
+                  <span className="next-shift-card__dow">（{nextWork.dow}）</span>
+                  <ShiftBadge shiftKey={nextWork.base} size="md" full />
+                  {nextWork.alpha.map(k => <AlphaBadge key={k} alphaKey={k} />)}
                 </div>
+                {nextWork.time && (
+                  <div className="next-shift-card__time">
+                    <IconClock />
+                    {nextWork.time}
+                  </div>
+                )}
               </div>
             )}
 
@@ -889,8 +934,10 @@ export default function App({ session: _session }) {
         open={showSettings}
         weekStart={weekStart}
         theme={theme}
+        mode={mode}
         onChangeWeekStart={setWeekStart}
         onChangeTheme={setTheme}
+        onChangeMode={setMode}
         onClose={() => setShowSettings(false)}
       />
 
