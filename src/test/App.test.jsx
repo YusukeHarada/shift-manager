@@ -389,3 +389,153 @@ describe("設定パネル（週開始・テーマ）", () => {
     expect(localStorage.getItem("shift-manager:theme")).toBe("ocean");
   });
 });
+
+describe("設定パネル（表示モード）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    document.documentElement.removeAttribute("data-mode");
+    supabaseMock.fetchShifts.mockResolvedValue({});
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 1));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  const openSettings = async () => {
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("設定"));
+  };
+
+  it("デフォルトは自動で、data-mode 属性は付かない", async () => {
+    await openSettings();
+    expect(document.documentElement.hasAttribute("data-mode")).toBe(false);
+    expect(localStorage.getItem("shift-manager:mode")).toBe("auto");
+  });
+
+  it("ダークを選ぶと data-mode=dark になり localStorage に保存される", async () => {
+    await openSettings();
+    fireEvent.click(screen.getByText("ダーク"));
+
+    expect(document.documentElement.getAttribute("data-mode")).toBe("dark");
+    expect(localStorage.getItem("shift-manager:mode")).toBe("dark");
+  });
+
+  it("ライトを選ぶと data-mode=light になる", async () => {
+    await openSettings();
+    fireEvent.click(screen.getByText("ライト"));
+
+    expect(document.documentElement.getAttribute("data-mode")).toBe("light");
+  });
+
+  it("ダークから自動に戻すと data-mode 属性が外れる", async () => {
+    await openSettings();
+    fireEvent.click(screen.getByText("ダーク"));
+    fireEvent.click(screen.getByText("自動"));
+
+    expect(document.documentElement.hasAttribute("data-mode")).toBe(false);
+    expect(localStorage.getItem("shift-manager:mode")).toBe("auto");
+  });
+
+  it("保存済みのモードが次回の起動で復元される", async () => {
+    localStorage.setItem("shift-manager:mode", "dark");
+    await openSettings();
+    expect(document.documentElement.getAttribute("data-mode")).toBe("dark");
+  });
+});
+
+describe("次の出勤カード", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 10)); // 2025年11月10日（月）
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  const renderWith = async (shifts) => {
+    supabaseMock.fetchShifts.mockResolvedValue(shifts);
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+  };
+
+  it("次の出勤日・曜日・勤務時間が表示される", async () => {
+    await renderWith({ "12": { base: "早", alpha: [] } });
+
+    expect(screen.getByText("11月12日")).toBeInTheDocument();
+    expect(screen.getByText("（水）")).toBeInTheDocument();
+    expect(screen.getByText("7:30 〜 16:15")).toBeInTheDocument();
+  });
+
+  it("バッジは略称ではなく正式名称で出る", async () => {
+    await renderWith({ "12": { base: "早", alpha: [] } });
+
+    const badge = document.querySelector(".next-shift-card .shift-badge");
+    expect(badge.textContent).toBe("早番");
+  });
+
+  it("勤務時間を持たないシフト（明け休み）では時間を出さない", async () => {
+    await renderWith({ "12": { base: "明", alpha: [] } });
+
+    expect(screen.getByText("11月12日")).toBeInTheDocument();
+    expect(document.querySelector(".next-shift-card__time")).toBeNull();
+  });
+
+  it("休みは次の出勤に数えない", async () => {
+    await renderWith({ "11": { base: "休", alpha: [] }, "13": { base: "日", alpha: [] } });
+
+    expect(screen.getByText("11月13日")).toBeInTheDocument();
+  });
+});
+
+describe("月の内訳（積み上げバーとチップ）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 1));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  const renderWith = async (shifts) => {
+    supabaseMock.fetchShifts.mockResolvedValue(shifts);
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+  };
+
+  it("ベースシフトの件数分だけバーが分割される", async () => {
+    await renderWith({
+      "1": { base: "早", alpha: [] },
+      "2": { base: "早", alpha: [] },
+      "3": { base: "夜", alpha: [] },
+      "4": { base: "休", alpha: [] },
+    });
+
+    const segs = document.querySelectorAll(".summary-bar__seg");
+    expect(segs).toHaveLength(3);
+    // 早番が2/4なので50%
+    expect(segs[0].style.width).toBe("50%");
+  });
+
+  it("チップに種別と件数が出る", async () => {
+    await renderWith({
+      "1": { base: "早", alpha: ["残"] },
+      "2": { base: "早", alpha: [] },
+    });
+
+    const chips = [...document.querySelectorAll(".summary-chip")].map(c => c.textContent);
+    expect(chips).toContain("早番2");
+    expect(chips).toContain("残業1");
+  });
+
+  it("シフトが1件もない月は内訳を出さない", async () => {
+    await renderWith({});
+    expect(document.querySelector(".summary-bar")).toBeNull();
+  });
+});

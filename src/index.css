@@ -13,6 +13,11 @@
   }
 }
 
+/*
+ * 明暗は light-dark() 一本で扱う。色ごとに明暗の値が並ぶので、
+ * ダークモード用の重複ブロックが要らない。
+ * light-dark() 非対応ブラウザは後段の宣言を捨てて前段のライト値で止まる。
+ */
 :root {
   /* Inter を先に置き、英数字は Inter・日本語は Noto Sans JP が担当する */
   --font-sans: 'Inter', 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
@@ -24,29 +29,6 @@
   --text-xl: 20px;
   --text-2xl: 24px;
 
-  --color-bg: #f6f6f3;
-  --color-surface: #ffffff;
-  --color-text: #1d1f22;
-  --color-text-secondary: #5d6167;
-  --color-text-muted: #8e9298;
-  --color-border: #e5e4de;
-  /* 枠線をやめた分、セルは背景との差が見える濃さが必要 */
-  --color-cell-bg: #ecece7;
-
-  --color-primary: #2f3640;
-  --color-primary-dark: #1e232b;
-  --color-primary-light: #ebecee;
-  --color-on-primary: #ffffff;
-
-  --color-danger: #b4432c;
-  --color-danger-light: #fbeae4;
-
-  --color-success: #2f6b46;
-  --color-success-light: #e6f1ea;
-
-  --color-sunday: #c0452c;
-  --color-saturday: #2563eb;
-
   --radius-xs: 8px;
   --radius-sm: 10px;
   --radius-md: 12px;
@@ -54,48 +36,80 @@
   --radius-xl: 24px;
   --radius-full: 999px;
 
-  /* 接地影と拡散影の2層で立体感を出す */
-  --shadow-sm: 0 1px 2px rgba(29,31,34,0.05);
-  --shadow-md: 0 1px 2px rgba(29,31,34,0.04), 0 8px 24px -10px rgba(29,31,34,0.12);
-  --shadow-lg: 0 8px 20px -6px rgba(29,31,34,0.16), 0 24px 56px -20px rgba(29,31,34,0.26);
-  --shadow-nav: 0 -1px 2px rgba(29,31,34,0.04), 0 -10px 28px -14px rgba(29,31,34,0.18);
-  --shadow-raised: 0 1px 2px rgba(29,31,34,0.07), 0 2px 6px -2px rgba(29,31,34,0.10);
-
   --transition: 0.15s ease;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  color-scheme: light dark;
 }
 
+/* 表示モードの明示指定。data-mode 未設定（自動）なら OS の設定に従う */
+:root[data-mode="light"] { color-scheme: light; }
+:root[data-mode="dark"] { color-scheme: dark; }
+
+/* light-dark() で表せない値だけはモード別に指定する */
+:root { --hover-brightness: 0.97; }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #15161a;
-    --color-surface: #1e2025;
-    --color-text: #f0f1f3;
-    --color-text-secondary: #b0b4bc;
-    --color-text-muted: #82868f;
-    --color-border: #32353c;
-    --color-cell-bg: #282b31;
+  :root:not([data-mode="light"]) { --hover-brightness: 1.15; }
+}
+:root[data-mode="dark"] { --hover-brightness: 1.15; }
 
-    --color-primary: #d8dae0;
-    --color-primary-dark: #babec6;
-    --color-primary-light: #2d3037;
-    --color-on-primary: #17191d;
+/* ライト値。light-dark() 非対応ブラウザはここで止まる */
+:root {
+  --color-bg: #f6f6f3;
+  --color-surface: #ffffff;
+  --color-text: #1d1f22;
+  --color-text-secondary: #5d6167;
+  --color-text-muted: #8e9298;
+  --color-border: #e5e4de;
+  --color-cell-bg: #ecece7;
+  --color-primary: #2f3640;
+  --color-primary-dark: #1e232b;
+  --color-primary-light: #ebecee;
+  --color-on-primary: #ffffff;
+  --color-danger: #b4432c;
+  --color-danger-light: #fbeae4;
+  --color-success: #2f6b46;
+  --color-sunday: #c0452c;
+  --color-saturday: #2563eb;
+  --shadow-color: rgba(29,31,34,0.05);
+  --shadow-color-soft: rgba(29,31,34,0.04);
+  --shadow-color-spread: rgba(29,31,34,0.12);
+  --shadow-color-deep: rgba(29,31,34,0.26);
+  --overlay-color: rgba(16,17,20,0.46);
+}
 
-    --color-danger: #e08a6c;
-    --color-danger-light: #3a2117;
+:root {
+  --color-bg: light-dark(#f6f6f3, #15161a);
+  --color-surface: light-dark(#ffffff, #1e2025);
+  --color-text: light-dark(#1d1f22, #f0f1f3);
+  --color-text-secondary: light-dark(#5d6167, #b0b4bc);
+  --color-text-muted: light-dark(#8e9298, #82868f);
+  --color-border: light-dark(#e5e4de, #32353c);
+  --color-cell-bg: light-dark(#ecece7, #282b31);
+  --color-primary: light-dark(#2f3640, #d8dae0);
+  --color-primary-dark: light-dark(#1e232b, #babec6);
+  --color-primary-light: light-dark(#ebecee, #2d3037);
+  --color-on-primary: light-dark(#ffffff, #17191d);
+  --color-danger: light-dark(#b4432c, #e08a6c);
+  --color-danger-light: light-dark(#fbeae4, #3a2117);
+  --color-success: light-dark(#2f6b46, #7fc496);
+  --color-sunday: light-dark(#c0452c, #e08a6c);
+  --color-saturday: light-dark(#2563eb, #7dabf5);
+  --shadow-color: light-dark(rgba(29,31,34,0.05), rgba(0,0,0,0.35));
+  --shadow-color-soft: light-dark(rgba(29,31,34,0.04), rgba(0,0,0,0.3));
+  --shadow-color-spread: light-dark(rgba(29,31,34,0.12), rgba(0,0,0,0.5));
+  --shadow-color-deep: light-dark(rgba(29,31,34,0.26), rgba(0,0,0,0.7));
+  --overlay-color: light-dark(rgba(16,17,20,0.46), rgba(0,0,0,0.62));
+}
 
-    --color-success: #7fc496;
-    --color-success-light: #16301f;
-
-    --color-sunday: #e08a6c;
-    --color-saturday: #7dabf5;
-
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
-    --shadow-md: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
-    --shadow-lg: 0 8px 20px -6px rgba(0,0,0,0.5), 0 24px 56px -20px rgba(0,0,0,0.7);
-    --shadow-nav: 0 -1px 2px rgba(0,0,0,0.3), 0 -10px 28px -14px rgba(0,0,0,0.55);
-    --shadow-raised: 0 1px 2px rgba(0,0,0,0.4), 0 2px 6px -2px rgba(0,0,0,0.5);
-  }
+:root {
+  /* 接地影と拡散影の2層で立体感を出す */
+  --shadow-sm: 0 1px 2px var(--shadow-color);
+  --shadow-md: 0 1px 2px var(--shadow-color-soft), 0 8px 24px -10px var(--shadow-color-spread);
+  --shadow-lg: 0 8px 20px -6px var(--shadow-color-spread), 0 24px 56px -20px var(--shadow-color-deep);
+  --shadow-nav: 0 -1px 2px var(--shadow-color-soft), 0 -10px 28px -14px var(--shadow-color-spread);
+  --shadow-raised: 0 1px 2px var(--shadow-color), 0 2px 6px -2px var(--shadow-color-spread);
 }
 
 [data-theme="ocean"] {
@@ -106,10 +120,22 @@
   --color-text-muted: #7d91a3;
   --color-border: #dbe6ee;
   --color-cell-bg: #e7eef5;
-
   --color-primary: #1a5f9e;
   --color-primary-dark: #15568f;
   --color-primary-light: #e4eef7;
+}
+
+[data-theme="ocean"] {
+  --color-bg: light-dark(#f2f6fa, #0f171f);
+  --color-surface: light-dark(#ffffff, #17212b);
+  --color-text: light-dark(#17222d, #e8f1f8);
+  --color-text-secondary: light-dark(#52697d, #a9bdcc);
+  --color-text-muted: light-dark(#7d91a3, #7c8fa0);
+  --color-border: light-dark(#dbe6ee, #263444);
+  --color-cell-bg: light-dark(#e7eef5, #1f2b37);
+  --color-primary: light-dark(#1a5f9e, #9fcbef);
+  --color-primary-dark: light-dark(#15568f, #7fb4de);
+  --color-primary-light: light-dark(#e4eef7, #1d2c3a);
 }
 
 [data-theme="forest"] {
@@ -120,10 +146,22 @@
   --color-text-muted: #7e8f78;
   --color-border: #dde8d8;
   --color-cell-bg: #e8efe5;
-
   --color-primary: #2a6e46;
   --color-primary-dark: #23603c;
   --color-primary-light: #e6f1ea;
+}
+
+[data-theme="forest"] {
+  --color-bg: light-dark(#f4f8f3, #10160f);
+  --color-surface: light-dark(#ffffff, #182018);
+  --color-text: light-dark(#1e2a1f, #e9f2e6);
+  --color-text-secondary: light-dark(#55684f, #aebfa6);
+  --color-text-muted: light-dark(#7e8f78, #81927a);
+  --color-border: light-dark(#dde8d8, #29342a);
+  --color-cell-bg: light-dark(#e8efe5, #212b21);
+  --color-primary: light-dark(#2a6e46, #a4dfba);
+  --color-primary-dark: light-dark(#23603c, #83c79c);
+  --color-primary-light: light-dark(#e6f1ea, #1b2c21);
 }
 
 [data-theme="sunset"] {
@@ -134,10 +172,22 @@
   --color-text-muted: #a3866c;
   --color-border: #f0ded0;
   --color-cell-bg: #f5e8dc;
-
   --color-primary: #b9541f;
   --color-primary-dark: #9c4518;
   --color-primary-light: #fbeadd;
+}
+
+[data-theme="sunset"] {
+  --color-bg: light-dark(#fbf5ef, #1b130d);
+  --color-surface: light-dark(#ffffff, #241a12);
+  --color-text: light-dark(#2c1d14, #f7e9de);
+  --color-text-secondary: light-dark(#7a5b45, #c3a68e);
+  --color-text-muted: light-dark(#a3866c, #987c66);
+  --color-border: light-dark(#f0ded0, #3a2a1c);
+  --color-cell-bg: light-dark(#f5e8dc, #2e2118);
+  --color-primary: light-dark(#b9541f, #f3b088);
+  --color-primary-dark: light-dark(#9c4518, #dd9264);
+  --color-primary-light: light-dark(#fbeadd, #362216);
 }
 
 [data-theme="mono"] {
@@ -148,68 +198,22 @@
   --color-text-muted: #858585;
   --color-border: #e2e2e2;
   --color-cell-bg: #eaeaea;
-
   --color-primary: #3d3d3d;
   --color-primary-dark: #262626;
   --color-primary-light: #ececec;
 }
 
-@media (prefers-color-scheme: dark) {
-  [data-theme="ocean"] {
-    --color-bg: #0f171f;
-    --color-surface: #17212b;
-    --color-text: #e8f1f8;
-    --color-text-secondary: #a9bdcc;
-    --color-text-muted: #7c8fa0;
-    --color-border: #263444;
-    --color-cell-bg: #1f2b37;
-
-    --color-primary: #9fcbef;
-    --color-primary-dark: #7fb4de;
-    --color-primary-light: #1d2c3a;
-  }
-
-  [data-theme="forest"] {
-    --color-bg: #10160f;
-    --color-surface: #182018;
-    --color-text: #e9f2e6;
-    --color-text-secondary: #aebfa6;
-    --color-text-muted: #81927a;
-    --color-border: #29342a;
-    --color-cell-bg: #212b21;
-
-    --color-primary: #a4dfba;
-    --color-primary-dark: #83c79c;
-    --color-primary-light: #1b2c21;
-  }
-
-  [data-theme="sunset"] {
-    --color-bg: #1b130d;
-    --color-surface: #241a12;
-    --color-text: #f7e9de;
-    --color-text-secondary: #c3a68e;
-    --color-text-muted: #987c66;
-    --color-border: #3a2a1c;
-    --color-cell-bg: #2e2118;
-
-    --color-primary: #f3b088;
-    --color-primary-dark: #dd9264;
-    --color-primary-light: #362216;
-  }
-
-  [data-theme="mono"] {
-    --color-bg: #151515;
-    --color-surface: #1f1f1f;
-    --color-text: #f0f0f0;
-    --color-text-secondary: #b5b5b5;
-    --color-text-muted: #878787;
-    --color-border: #333333;
-    --color-cell-bg: #2a2a2a;
-
-    --color-primary: #d4d4d4;
-    --color-primary-dark: #b0b0b0;
-    --color-primary-light: #2c2c2c;
-  }
+[data-theme="mono"] {
+  --color-bg: light-dark(#f5f5f5, #151515);
+  --color-surface: light-dark(#ffffff, #1f1f1f);
+  --color-text: light-dark(#1f1f1f, #f0f0f0);
+  --color-text-secondary: light-dark(#5c5c5c, #b5b5b5);
+  --color-text-muted: light-dark(#858585, #878787);
+  --color-border: light-dark(#e2e2e2, #333333);
+  --color-cell-bg: light-dark(#eaeaea, #2a2a2a);
+  --color-primary: light-dark(#3d3d3d, #d4d4d4);
+  --color-primary-dark: light-dark(#262626, #b0b0b0);
+  --color-primary-light: light-dark(#ececec, #2c2c2c);
 }
 
 html, body {
@@ -342,45 +346,57 @@ input {
   padding: 12px;
 }
 
+/* 次の出勤：この画面で一番知りたい情報なので大きく扱う */
 .next-shift-card {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 14px 16px;
+  padding: 16px;
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   margin-bottom: 12px;
 }
 
-.next-shift-card__icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .next-shift-card__label {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
   font-weight: 500;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .next-shift-card__content {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--color-text);
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   flex-wrap: wrap;
   font-variant-numeric: tabular-nums;
+}
+
+.next-shift-card__date {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.next-shift-card__dow {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.next-shift-card__time {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-size: var(--text-md);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.next-shift-card__time svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
 }
 
 .view-tabs {
@@ -584,21 +600,12 @@ input {
 }
 
 .calendar-cell:hover {
-  filter: brightness(0.97);
+  filter: brightness(var(--hover-brightness));
 }
 
 .calendar-cell--filled {
   background: var(--sbg);
-}
-
-@media (prefers-color-scheme: dark) {
-  .calendar-cell--filled {
-    background: var(--sbgd);
-  }
-
-  .calendar-cell:hover {
-    filter: brightness(1.15);
-  }
+  background: light-dark(var(--sbg), var(--sbgd));
 }
 
 /* 「今日」は内向きリング、「選択中」は外向きリング。形が違うので色が近くても混同しない */
@@ -663,21 +670,12 @@ input {
 }
 
 .list-item:hover {
-  filter: brightness(0.97);
+  filter: brightness(var(--hover-brightness));
 }
 
 .list-item--filled {
   background: var(--sbg);
-}
-
-@media (prefers-color-scheme: dark) {
-  .list-item--filled {
-    background: var(--sbgd);
-  }
-
-  .list-item:hover {
-    filter: brightness(1.15);
-  }
+  background: light-dark(var(--sbg), var(--sbgd));
 }
 
 .list-item--today {
@@ -717,14 +715,9 @@ input {
   font-weight: 700;
   white-space: nowrap;
   background: var(--sbg);
+  background: light-dark(var(--sbg), var(--sbgd));
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .shift-badge {
-    background: var(--sbgd);
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 .shift-badge--sm {
@@ -745,12 +738,7 @@ input {
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .calendar-cell__shift {
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 .alpha-badge {
@@ -763,14 +751,9 @@ input {
   padding: 2px 6px;
   white-space: nowrap;
   background: var(--sbg);
+  background: light-dark(var(--sbg), var(--sbgd));
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .alpha-badge {
-    background: var(--sbgd);
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 /* カレンダーのセル内は幅が 50px 前後しかないため、αだけ一段小さくする */
@@ -779,66 +762,60 @@ input {
   padding: 1px 5px;
 }
 
-/* Summary cards */
+/* 月の内訳。積み上げバーで構成比を、チップで件数を見せる */
 .summary-section {
   padding: 0 0 12px;
 }
 
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 8px;
-}
-
-.summary-card {
-  border-radius: var(--radius-md);
-  padding: 12px 8px 11px;
-  text-align: center;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.summary-card__count {
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  line-height: 1;
-  margin-bottom: 5px;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  color: var(--sc);
-}
-
-/* ラベルはシフト色にしない。色は数値とバーだけに持たせて騒がしさを減らす */
-.summary-card__label {
-  font-size: var(--text-xs);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-}
-
-@media (prefers-color-scheme: dark) {
-  .summary-card__count {
-    color: var(--scd);
-  }
-}
-
-.summary-card__bar-track {
-  margin-top: 7px;
-  height: 4px;
+.summary-bar {
+  display: flex;
+  height: 10px;
   border-radius: var(--radius-full);
   overflow: hidden;
   background: var(--color-cell-bg);
+  margin-bottom: 10px;
 }
 
-.summary-card__bar {
-  height: 100%;
-  border-radius: var(--radius-full);
+.summary-bar__seg {
   background: var(--sc);
+  background: light-dark(var(--sc), var(--scd));
 }
 
-@media (prefers-color-scheme: dark) {
-  .summary-card__bar {
-    background: var(--scd);
-  }
+.summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px 4px 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.summary-chip__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  background: var(--sc);
+  background: light-dark(var(--sc), var(--scd));
+}
+
+/* 「早番1」のように名前が数字で終わる種別があるため、件数は別の面に載せて切り分ける */
+.summary-chip__count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  background: var(--color-cell-bg);
+  border-radius: var(--radius-full);
+  padding: 1px 6px;
 }
 
 /* Shift input panel */
@@ -870,7 +847,9 @@ input {
   border-radius: var(--radius-xs);
   padding: 3px 8px;
   color: var(--sc);
+  color: light-dark(var(--sc), var(--scd));
   background: var(--sbg);
+  background: light-dark(var(--sbg), var(--sbgd));
 }
 
 .input-panel__selected-alpha {
@@ -879,15 +858,9 @@ input {
   border-radius: 6px;
   padding: 2px 6px;
   color: var(--sc);
+  color: light-dark(var(--sc), var(--scd));
   background: var(--sbg);
-}
-
-@media (prefers-color-scheme: dark) {
-  .input-panel__selected-shift,
-  .input-panel__selected-alpha {
-    color: var(--scd);
-    background: var(--sbgd);
-  }
+  background: light-dark(var(--sbg), var(--sbgd));
 }
 
 .input-panel__count {
@@ -918,25 +891,15 @@ input {
   min-height: 44px;
   background: var(--color-cell-bg);
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .input-panel__shift-btn {
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 /* 選択状態は枠線ではなく内向きリングで示す */
 .input-panel__shift-btn--active {
   background: var(--sbg);
+  background: light-dark(var(--sbg), var(--sbgd));
   box-shadow: inset 0 0 0 2px var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .input-panel__shift-btn--active {
-    background: var(--sbgd);
-    box-shadow: inset 0 0 0 2px var(--scd);
-  }
+  box-shadow: inset 0 0 0 2px light-dark(var(--sc), var(--scd));
 }
 
 /* 3列固定。折り返した半休（AM休／PM休）が引き伸ばされず横並びになる */
@@ -956,24 +919,14 @@ input {
   min-height: 44px;
   background: var(--color-cell-bg);
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .input-panel__alpha-btn {
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 .input-panel__alpha-btn--active {
   background: var(--sbg);
+  background: light-dark(var(--sbg), var(--sbgd));
   box-shadow: inset 0 0 0 2px var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .input-panel__alpha-btn--active {
-    background: var(--sbgd);
-    box-shadow: inset 0 0 0 2px var(--scd);
-  }
+  box-shadow: inset 0 0 0 2px light-dark(var(--sc), var(--scd));
 }
 
 .input-panel__save-btn {
@@ -996,7 +949,7 @@ input {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(16,17,20,0.46);
+  background: var(--overlay-color);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1035,6 +988,8 @@ input {
   max-width: 380px;
   padding: 24px 20px;
   animation: scaleIn 0.18s ease;
+  max-height: 88dvh;
+  overflow-y: auto;
 }
 
 @keyframes scaleIn {
@@ -1081,24 +1036,14 @@ input {
   transition: background var(--transition), box-shadow var(--transition);
   background: var(--color-cell-bg);
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .picker-shift-btn {
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 .picker-shift-btn--active {
   background: var(--sbg);
+  background: light-dark(var(--sbg), var(--sbgd));
   box-shadow: inset 0 0 0 2px var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .picker-shift-btn--active {
-    background: var(--sbgd);
-    box-shadow: inset 0 0 0 2px var(--scd);
-  }
+  box-shadow: inset 0 0 0 2px light-dark(var(--sc), var(--scd));
 }
 
 /* 3列固定。折り返した半休（AM休／PM休）が引き伸ばされず横並びになる */
@@ -1118,24 +1063,25 @@ input {
   min-height: 52px;
   background: var(--color-cell-bg);
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .picker-alpha-btn {
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 .picker-alpha-btn--active {
   background: var(--sbg);
+  background: light-dark(var(--sbg), var(--sbgd));
   box-shadow: inset 0 0 0 2px var(--sc);
+  box-shadow: inset 0 0 0 2px light-dark(var(--sc), var(--scd));
 }
 
-@media (prefers-color-scheme: dark) {
-  .picker-alpha-btn--active {
-    background: var(--sbgd);
-    box-shadow: inset 0 0 0 2px var(--scd);
-  }
+/* シフト色を持たない設定用のボタン。選択状態はプライマリのリングで示す */
+.picker-shift-btn--plain {
+  color: var(--color-text-secondary);
+}
+
+.picker-shift-btn--plain.picker-shift-btn--active {
+  background: var(--color-primary-light);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  color: var(--color-text);
 }
 
 .picker-save-btn {
@@ -1176,12 +1122,7 @@ input {
 .work-table__label {
   font-weight: 700;
   color: var(--sc);
-}
-
-@media (prefers-color-scheme: dark) {
-  .work-table__label {
-    color: var(--scd);
-  }
+  color: light-dark(var(--sc), var(--scd));
 }
 
 .work-table tr:last-child td {

@@ -26,9 +26,10 @@ src/
 ├── index.css       # CSS 変数によるデザインシステム（フレームワークなし）
 ├── __mocks__/      # vitest 用モック（supabase.js / ical.js）
 └── test/
-    ├── setup.js        # @testing-library/jest-dom のセットアップ
-    ├── App.test.jsx    # UI テスト 25 件
-    └── ical.test.js    # iCal 単体テスト 7 件
+    ├── setup.js         # @testing-library/jest-dom のセットアップ
+    ├── App.test.jsx     # UI テスト 47 件
+    ├── Login.test.jsx   # ログイン画面 7 件
+    └── ical.test.js     # iCal 単体テスト 18 件
 ```
 
 ## アーキテクチャ
@@ -119,6 +120,24 @@ UNIQUE(year, month, day)
 - **状態はリングで示す。** 「今日」は `box-shadow: inset 0 0 0 2px`、「選択中」は外向きの `box-shadow: 0 0 0 2px`。形が違うので色が近くても混同しない。この方式にしたことで状態指定の `!important` が不要になった（残っているのは `prefers-reduced-motion` の4行だけ）
 - **ウェイトは 400 / 500 / 600 / 700。** 800 は使わない
 - **プライマリ上の文字は `--color-on-primary`。** ダークモードではプライマリが明色に反転するため `#fff` 固定は不可
+
+### 明暗の出し分け
+
+`@media (prefers-color-scheme: dark)` のブロックは作らない。**`light-dark(ライト値, ダーク値)` で1行にまとめる。**
+
+```css
+--color-bg: #f6f6f3;                       /* 非対応ブラウザ用のフォールバック */
+--color-bg: light-dark(#f6f6f3, #15161a);  /* 対応ブラウザはこちらで上書き */
+```
+
+- 明暗の切り替えは `:root` の `color-scheme`。`data-mode="light" | "dark"` で明示指定し、**属性なし＝自動**（OS の設定に従う）
+- 2行1組のフォールバックは必ず書く。`light-dark()` 非対応ブラウザは後段を捨ててライト値で止まる（壊れずに常時ライトになる）
+- `filter` など色以外の値は `light-dark()` で書けないため、`--hover-brightness` のようにトークン化してモード別に指定する（現状これ1つだけ）
+- シフト色は `colorVars()` が `--sc`/`--scd`/`--sbg`/`--sbgd` の4つを流し込み、CSS 側が `light-dark(var(--sc), var(--scd))` で選ぶ
+
+### シフト色を変えるときの検証
+
+`BASE_SHIFTS` / `ALPHA_TYPES` の `color` と `bg` は、**ライト・ダーク両方で 4.5:1 以上**を満たすこと。`bg` はカレンダーのセル全体を塗るため、8種が同じくらいの濃さになるよう揃えている。片方だけ濃くすると月のパターンが不揃いに見える。
 
 ## コーディング規約
 
