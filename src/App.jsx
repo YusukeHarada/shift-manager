@@ -2,24 +2,26 @@ import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 
+// color は bg の上で 4.5:1 以上になる濃さに揃えている（薄い塗り＋濃い文字）
 const BASE_SHIFTS = [
-  { key: "日",  label: "日勤",     color: "#16a34a", bg: "#f0fdf4", darkColor: "#4ade80", darkBg: "#15291d", start: "8:45",  end: "17:30" },
-  { key: "早1", label: "早番1",    color: "#1d6fb7", bg: "#eff6ff", darkColor: "#38bdf8", darkBg: "#12293b", start: "7:00",  end: "15:45" },
-  { key: "早",  label: "早番",     color: "#2563eb", bg: "#dbeafe", darkColor: "#818cf8", darkBg: "#1e2142", start: "7:30",  end: "16:15" },
-  { key: "遅",  label: "遅番",     color: "#d97706", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
-  { key: "夜",  label: "夜勤",     color: "#7c3aed", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a", start: "16:30", end: "翌9:30" },
-  { key: "明",  label: "明け休み", color: "#9333ea", bg: "#fdf4ff", darkColor: "#d8b4fe", darkBg: "#331f47" },
-  { key: "当",  label: "当直",     color: "#0d9488", bg: "#f0fdfa", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
-  { key: "休",  label: "休み",     color: "#94a3b8", bg: "#f8fafc", darkColor: "#9aa5b1", darkBg: "#262b33" },
-  { key: "",    label: "未入力",   color: "#cbd5e1", bg: "#f8fafc", darkColor: "#6b7280", darkBg: "#23262b" },
+  { key: "日",  label: "日勤",     color: "#15803d", bg: "#f0fdf4", darkColor: "#4ade80", darkBg: "#15291d", start: "8:45",  end: "17:30" },
+  { key: "早1", label: "早番1",    color: "#175e9e", bg: "#eff6ff", darkColor: "#38bdf8", darkBg: "#12293b", start: "7:00",  end: "15:45" },
+  { key: "早",  label: "早番",     color: "#1d4ed8", bg: "#dbeafe", darkColor: "#818cf8", darkBg: "#1e2142", start: "7:30",  end: "16:15" },
+  { key: "遅",  label: "遅番",     color: "#b45309", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
+  { key: "夜",  label: "夜勤",     color: "#6d28d9", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a", start: "16:30", end: "翌9:30" },
+  { key: "明",  label: "明け休み", color: "#7e22ce", bg: "#fdf4ff", darkColor: "#d8b4fe", darkBg: "#331f47" },
+  { key: "当",  label: "当直",     color: "#0f766e", bg: "#f0fdfa", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
+  // 休み・未入力は中性色のため、枠線なしでは未入力セルの背景と紛れる。塗りに差をつけている
+  { key: "休",  label: "休み",     color: "#4b5563", bg: "#e6eaf0", darkColor: "#b3bdca", darkBg: "#313a46" },
+  { key: "",    label: "未入力",   color: "#5f6773", bg: "#eef0f3", darkColor: "#8a919c", darkBg: "#2f333a" },
 ];
 
 const ALPHA_TYPES = [
-  { key: "残", label: "残業", color: "#dc2626", bg: "#fef2f2", darkColor: "#f87171", darkBg: "#3a1a17" },
-  { key: "会", label: "会議", color: "#d97706", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10" },
-  { key: "当", label: "当直", color: "#7c3aed", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a" },
-  { key: "前休", label: "AM休", color: "#0891b2", bg: "#ecfeff", darkColor: "#22d3ee", darkBg: "#0e2c33", group: "half" },
-  { key: "後休", label: "PM休", color: "#0284c7", bg: "#f0f9ff", darkColor: "#38bdf8", darkBg: "#0f2739", group: "half" },
+  { key: "残", label: "残業", color: "#b91c1c", bg: "#fef2f2", darkColor: "#f87171", darkBg: "#3a1a17" },
+  { key: "会", label: "会議", color: "#b45309", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10" },
+  { key: "当", label: "当直", color: "#6d28d9", bg: "#f5f3ff", darkColor: "#a78bfa", darkBg: "#29214a" },
+  { key: "前休", label: "AM休", color: "#0e7490", bg: "#ecfeff", darkColor: "#22d3ee", darkBg: "#0e2c33", group: "half" },
+  { key: "後休", label: "PM休", color: "#0369a1", bg: "#f0f9ff", darkColor: "#38bdf8", darkBg: "#0f2739", group: "half" },
 ];
 
 // 半休（AM休／PM休）は同時に成立しないため、同じ group のキーは1つだけ残す
@@ -43,12 +45,13 @@ function getWeekdayLabels(weekStart) {
   return WEEKDAYS.map((_, i) => WEEKDAYS[(i + offset) % 7]);
 }
 
+// swatch は index.css の各テーマの --color-primary と揃える
 const THEMES = [
-  { key: "default", label: "デフォルト", swatch: "#7d3345" },
-  { key: "ocean",    label: "オーシャン", swatch: "#1d6fb7" },
-  { key: "forest",   label: "フォレスト", swatch: "#2f7d4f" },
-  { key: "sunset",   label: "サンセット", swatch: "#d9642a" },
-  { key: "mono",     label: "モノクローム", swatch: "#4b4b4b" },
+  { key: "default", label: "デフォルト", swatch: "#2f3640" },
+  { key: "ocean",    label: "オーシャン", swatch: "#1a5f9e" },
+  { key: "forest",   label: "フォレスト", swatch: "#2a6e46" },
+  { key: "sunset",   label: "サンセット", swatch: "#b9541f" },
+  { key: "mono",     label: "モノクローム", swatch: "#3d3d3d" },
 ];
 
 const WEEK_START_KEY = "shift-manager:weekStart";
