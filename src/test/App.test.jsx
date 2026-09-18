@@ -539,3 +539,109 @@ describe("月の内訳（積み上げバーとチップ）", () => {
     expect(document.querySelector(".summary-bar")).toBeNull();
   });
 });
+
+describe("勤務時間表", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    supabaseMock.fetchShifts.mockResolvedValue({});
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 1));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  const openTable = async () => {
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("時間表"));
+  };
+
+  // 当直はベースシフトから外したが、勤務時間の参照はαから拾って表に残している
+  it("当直の勤務時間が表に残っている", async () => {
+    await openTable();
+    const row = [...document.querySelectorAll(".work-table tbody tr")]
+      .find(tr => tr.querySelector(".work-table__label").textContent === "当直");
+
+    expect(row).toBeDefined();
+    expect([...row.cells].map(td => td.textContent)).toEqual(["当直", "19:00", "翌7:00"]);
+  });
+
+  it("勤務時間を持たない種別（明け休み・休み）は表に出ない", async () => {
+    await openTable();
+    const labels = [...document.querySelectorAll(".work-table__label")].map(el => el.textContent);
+    expect(labels).not.toContain("明け休み");
+    expect(labels).not.toContain("休み");
+  });
+});
+
+describe("当直をベースシフトから削除した影響", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    supabaseMock.fetchShifts.mockResolvedValue({});
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 1));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  it("シフト選択ポップアップに当直が出ない", async () => {
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getAllByText("1")[0]);
+
+    const baseButtons = [...document.querySelectorAll(".picker-shift-btn")].map(b => b.textContent);
+    expect(baseButtons).not.toContain("当直");
+    // αオプションとしては選べる
+    const alphaButtons = [...document.querySelectorAll(".picker-alpha-btn")].map(b => b.textContent);
+    expect(alphaButtons).toContain("当直");
+  });
+});
+
+describe("選択肢から外した種別が保存されている日", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 1));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  // ベースシフトから当直を外したため、過去に「当」で保存した日が存在しうる。
+  // 未知のキーを未入力に丸めると画面から消えてしまうので、キーをそのまま出す
+  it("カレンダーに元のキーが残る", async () => {
+    supabaseMock.fetchShifts.mockResolvedValue({ "5": { base: "当", alpha: [] } });
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+
+    const cell = [...document.querySelectorAll(".calendar-cell")]
+      .find(c => c.querySelector(".calendar-cell__day")?.textContent === "5");
+    expect(cell.querySelector(".calendar-cell__shift").textContent).toBe("当");
+  });
+
+  it("リストでも元のキーが残る", async () => {
+    supabaseMock.fetchShifts.mockResolvedValue({ "5": { base: "当", alpha: [] } });
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText(/リスト/));
+
+    const row = [...document.querySelectorAll(".list-item")]
+      .find(li => li.querySelector(".list-item__day")?.textContent === "5");
+    expect(row.querySelector(".shift-badge").textContent).toBe("当");
+  });
+
+  it("未入力の日は従来どおり「－」になる", async () => {
+    supabaseMock.fetchShifts.mockResolvedValue({});
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+
+    const cell = [...document.querySelectorAll(".calendar-cell")]
+      .find(c => c.querySelector(".calendar-cell__day")?.textContent === "5");
+    expect(cell.querySelector(".calendar-cell__empty").textContent).toBe("－");
+  });
+});
