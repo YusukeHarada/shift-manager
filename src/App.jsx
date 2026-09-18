@@ -15,7 +15,6 @@ export const BASE_SHIFTS = [
   // 夜勤の翌日に必ず来るのでローズ系で揃え、彩度を落として「休み」であることを示す。
   // 完全に同色にすると内訳のバーとチップで夜勤と区別できなくなる
   { key: "明",  label: "明け休み", color: "#8a4864", bg: "#f0dee6", darkColor: "#e5b3c6", darkBg: "#45333d" },
-  { key: "当",  label: "当直",     color: "#0f766e", bg: "#d5f0ea", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
   // 休み・未入力は中性色のため、枠線なしでは未入力セルの背景と紛れる。塗りに差をつけている
   { key: "休",  label: "休み",     color: "#4b5563", bg: "#d9e0ea", darkColor: "#b3bdca", darkBg: "#313a46" },
   { key: "",    label: "未入力",   color: "#5f6773", bg: "#eef0f3", darkColor: "#a5adb9", darkBg: "#2f333a" },
@@ -24,8 +23,8 @@ export const BASE_SHIFTS = [
 export const ALPHA_TYPES = [
   { key: "残", label: "残業", color: "#b91c1c", bg: "#fef2f2", darkColor: "#f87171", darkBg: "#3a1a17" },
   { key: "会", label: "会議", color: "#b45309", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10" },
-  // ベースシフトの「当直」と同じ色。付く場所が違うだけで同じ勤務を指すため揃える
-  { key: "当", label: "当直", color: "#0f766e", bg: "#d5f0ea", darkColor: "#2dd4bf", darkBg: "#0f2b28" },
+  // 当直はαだけで扱う（ベースシフトからは削除済み）。勤務時間表に出すため start/end を持つ
+  { key: "当", label: "当直", color: "#0f766e", bg: "#d5f0ea", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
   { key: "前休", label: "AM休", color: "#0e7490", bg: "#ecfeff", darkColor: "#22d3ee", darkBg: "#0e2c33", group: "half" },
   { key: "後休", label: "PM休", color: "#0369a1", bg: "#f0f9ff", darkColor: "#38bdf8", darkBg: "#0f2739", group: "half" },
 ];
@@ -158,7 +157,12 @@ function getFirstDayOfWeek(year, month, weekStart = "mon") {
 }
 
 function getBaseInfo(key) {
-  return BASE_SHIFTS.find(s => s.key === key) || BASE_SHIFTS[BASE_SHIFTS.length - 1];
+  const found = BASE_SHIFTS.find(s => s.key === key);
+  if (found) return found;
+  // 選択肢から外した種別（当直など）で保存済みの日が空白に見えてしまわないよう、
+  // 未知のキーは未入力の配色のままキーをそのまま表示する
+  const unknown = BASE_SHIFTS[BASE_SHIFTS.length - 1];
+  return key ? { ...unknown, key, label: key } : unknown;
 }
 
 function getAlphaInfo(key) {
@@ -356,7 +360,8 @@ function SettingsPanel({ open, weekStart, theme, mode, onChangeWeekStart, onChan
 
 function WorkTimeModal({ open, onClose }) {
   if (!open) return null;
-  const rows = BASE_SHIFTS.filter(s => s.start);
+  // 当直はαにしか無いので、αからも時刻を持つものを拾う
+  const rows = [...BASE_SHIFTS, ...ALPHA_TYPES].filter(s => s.start);
   return (
     <div className="modal-overlay modal-overlay--center" onClick={onClose}>
       <div className="modal-sheet modal-sheet--dialog" onClick={e => e.stopPropagation()}>

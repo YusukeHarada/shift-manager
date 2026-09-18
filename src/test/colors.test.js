@@ -56,15 +56,25 @@ describe("シフト色の定義", () => {
     }
   });
 
-  // 「当直」はベースとαで同じ勤務を指すため同色。それ以外が重なると見分けられない
-  it("同じ配色を使うのは当直のベースとαだけ", () => {
+  it("配色が重複している種別が無い", () => {
     const byPalette = {};
     for (const s of ALL) {
       const palette = `${s.color}/${s.bg}`;
       (byPalette[palette] ||= []).push(s.label);
     }
     const shared = Object.values(byPalette).filter(labels => labels.length > 1);
-    expect(shared).toEqual([["当直", "当直"]]);
+    expect(shared).toEqual([]);
+  });
+
+  // 当直はαだけで扱う。ベースシフトに戻すと同じ勤務が2箇所から選べてしまう
+  it("当直はαオプションにだけある", () => {
+    expect(BASE_SHIFTS.map(s => s.label)).not.toContain("当直");
+    expect(ALPHA_TYPES.map(a => a.label)).toContain("当直");
+  });
+
+  it("勤務時間を持つ種別に当直が含まれる（勤務時間表に出るため）", () => {
+    const withHours = ALL.filter(s => s.start).map(s => s.label);
+    expect(withHours).toContain("当直");
   });
 
   it("ベースシフトの塗りの明るさが揃っている（月のパターンが不揃いに見えないため）", () => {
