@@ -12,7 +12,8 @@ export const BASE_SHIFTS = [
   { key: "遅",  label: "遅番",     color: "#99460a", bg: "#fbeed0", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
   // 夜勤は回数が多く一番読めてほしい。青系は早番・早番1・土曜で埋まっているためローズを充てている
   { key: "夜",  label: "夜勤",     color: "#9d174d", bg: "#f9d9e6", darkColor: "#f7a8cb", darkBg: "#401329", start: "16:30", end: "翌9:30" },
-  { key: "明",  label: "明け休み", color: "#7e22ce", bg: "#f2ddfa", darkColor: "#d8b4fe", darkBg: "#331f47" },
+  // 夜勤の翌日に必ず来るのでローズ系で揃え、彩度を落として「休み」であることを示す
+  { key: "明",  label: "明け休み", color: "#8a4864", bg: "#f0dee6", darkColor: "#e5b3c6", darkBg: "#45333d" },
   { key: "当",  label: "当直",     color: "#0f766e", bg: "#d5f0ea", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
   // 休み・未入力は中性色のため、枠線なしでは未入力セルの背景と紛れる。塗りに差をつけている
   { key: "休",  label: "休み",     color: "#4b5563", bg: "#d9e0ea", darkColor: "#b3bdca", darkBg: "#313a46" },
