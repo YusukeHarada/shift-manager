@@ -676,12 +676,20 @@ function WarningList({ warnings }) {
   return (
     <ul className="warning-list">
       {warnings.map((w, i) => (
-        <li key={`${w.type}-${w.day}-${i}`} className="warning-item">
+        <li
+          key={`${w.type}-${w.day}-${i}`}
+          className={`warning-item${w.type === "oncall" ? " warning-item--soft" : ""}`}
+        >
           <span className="warning-item__day">{w.day}日</span>
-          {w.type === "streak"
-            ? <span>{w.startDay}日から{w.length}連勤{w.fromPrevMonth ? "（前月から継続）" : ""}</span>
-            : <span>前日から{formatMinutes(w.minutes)}しか空いていません</span>
-          }
+          {w.type === "streak" && (
+            <span>{w.startDay}日から{w.length}連勤{w.fromPrevMonth ? "（前月から継続）" : ""}</span>
+          )}
+          {w.type === "interval" && (
+            <span>前日から{formatMinutes(w.minutes)}しか空いていません</span>
+          )}
+          {w.type === "oncall" && (
+            <span>当直明けの勤務（空き{formatMinutes(w.minutes)}）</span>
+          )}
         </li>
       ))}
     </ul>
@@ -708,10 +716,13 @@ function StatGrid({ result }) {
       <StatTile label="休日数" value={result.offDays} unit="日" />
       <StatTile label="総拘束時間" value={Math.round(hours.totalMinutes / 60)} unit="時間" />
       <StatTile label="うち夜勤" value={Math.round(hours.nightMinutes / 60)} unit="時間" />
+      {hours.onCallMinutes > 0 && (
+        <StatTile label="うち当直" value={Math.round(hours.onCallMinutes / 60)} unit="時間" />
+      )}
       <StatTile label="1日平均" value={formatMinutes(hours.averageMinutes)} compact />
       <StatTile label="最大連勤" value={streaks.max} unit="日" />
       <StatTile
-        label="最短インターバル"
+        label="最短の空き"
         value={streaks.shortestInterval === null ? "—" : formatMinutes(streaks.shortestInterval)}
         compact
       />

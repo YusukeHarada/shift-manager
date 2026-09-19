@@ -4,6 +4,8 @@ import {
   getDuration,
   getDayWindow,
   getRestInterval,
+  getOnCallGap,
+  getOnCallDuration,
   isWorkDay,
   getDayLoad,
   analyzeMonth,
@@ -95,9 +97,16 @@ describe("getDayWindow", () => {
 });
 
 describe("getRestInterval", () => {
-  it("当直明けに日勤が続くと極端に短くなる", () => {
-    // 翌7:00 終業 → 8:45 始業
-    expect(getRestInterval(entry("日", ["当"]), entry("日"))).toBe(105);
+  it("11時間ルールの判定には当直の時間帯を含めない", () => {
+    // 当直は仮眠を取れる断続的労働なので、日勤 17:30 終業 → 日勤 8:45 始業 で見る
+    expect(getRestInterval(entry("日", ["当"]), entry("日"))).toBe(915);
+  });
+
+  it("夜勤の翌日に明け休み以外が入ると前後が重なる", () => {
+    // 夜勤は翌9:30 まで。翌日の日勤は 8:45 始業なので重なって負になる
+    expect(getRestInterval(entry("夜"), entry("日"))).toBeLessThan(0);
+    // 表示は 0 に丸める
+    expect(formatMinutes(getRestInterval(entry("夜"), entry("日")))).toBe("0時間");
   });
 
   it("遅番から早番1はちょうど12時間", () => {
@@ -108,6 +117,32 @@ describe("getRestInterval", () => {
     expect(getRestInterval(entry("夜"), entry("明"))).toBeNull();
     expect(getRestInterval(entry("休"), entry("日"))).toBeNull();
     expect(getRestInterval(null, entry("日"))).toBeNull();
+  });
+});
+
+describe("getOnCallGap", () => {
+  it("当直終了から翌日の始業までを返す", () => {
+    // 当直は翌7:00 終業。翌日の日勤は 8:45 始業
+    expect(getOnCallGap(entry("日", ["当"]), entry("日"))).toBe(105);
+    // 早番1 は 7:00 始業なので空きがない
+    expect(getOnCallGap(entry("早1", ["残", "当"]), entry("早1"))).toBe(0);
+    expect(getOnCallGap(entry("明", ["当"]), entry("遅"))).toBe(195);
+  });
+
+  it("当直が無い日、翌日が休みの日は判定しない", () => {
+    expect(getOnCallGap(entry("日"), entry("日"))).toBeNull();
+    expect(getOnCallGap(entry("日", ["当"]), entry("休"))).toBeNull();
+    expect(getOnCallGap(entry("日", ["当"]), entry("明"))).toBeNull();
+    expect(getOnCallGap(null, entry("日"))).toBeNull();
+  });
+});
+
+describe("getOnCallDuration", () => {
+  it("当直のぶんだけを返す", () => {
+    expect(getOnCallDuration(entry("日", ["当"]))).toBe(720);
+    expect(getOnCallDuration(entry("明", ["当"]))).toBe(720);
+    expect(getOnCallDuration(entry("日", ["残"]))).toBe(0);
+    expect(getOnCallDuration(entry("夜"))).toBe(0);
   });
 });
 
@@ -235,8 +270,16 @@ describe("analyzeMonth - 集計", () => {
   });
 
   it("最短の勤務間インターバルを出す", () => {
+    // 日勤→日勤 が 915分、遅番→早番1 が 720分。当直は 11時間ルールに含めない
     const r = analyzeMonth(2025, 11, fromPattern([["日", ["当"]], "日", "休", "遅", "早1"]), {});
-    expect(r.streaks.shortestInterval).toBe(105);
+    expect(r.streaks.shortestInterval).toBe(720);
+  });
+
+  it("当直の拘束時間を内訳として出す", () => {
+    const r = analyzeMonth(2025, 11, fromPattern([["日", ["当"]], ["明", ["当"]], "夜"]), {});
+    expect(r.hours.onCallMinutes).toBe(720 * 2);
+    expect(r.hours.nightMinutes).toBe(1020);
+    expect(r.hours.totalMinutes).toBe(525 + 720 + 720 + 1020);
   });
 });
 
@@ -324,10 +367,23 @@ describe("analyzeMonth - 警告", () => {
     expect(streak).toMatchObject({ length: 6, fromPrevMonth: true, startDay: 28 });
   });
 
-  it("11時間未満のインターバルを警告する", () => {
+  it("当直明けの勤務は専用の警告にする", () => {
     const r = analyzeMonth(2025, 11, fromPattern([["日", ["当"]], "日"]), {});
+    expect(r.warnings.find(w => w.type === "oncall")).toMatchObject({ day: 2, minutes: 105 });
+    // 11時間ルールの警告にはしない
+    expect(r.warnings.find(w => w.type === "interval")).toBeUndefined();
+  });
+
+  it("当直の翌日が休みなら警告しない", () => {
+    const r = analyzeMonth(2025, 11, fromPattern([["日", ["当"]], "休"]), {});
+    expect(r.warnings.filter(w => w.type === "oncall")).toHaveLength(0);
+  });
+
+  it("11時間未満のインターバルを警告する", () => {
+    // 夜勤（翌9:30終業）の翌日に遅番（10:15始業）が入ると45分しかない
+    const r = analyzeMonth(2025, 11, fromPattern(["夜", "遅"]), {});
     const interval = r.warnings.find(w => w.type === "interval");
-    expect(interval).toMatchObject({ day: 2, minutes: 105 });
+    expect(interval).toMatchObject({ day: 2, minutes: 45 });
   });
 
   it("12時間空いていれば警告しない", () => {

@@ -956,6 +956,16 @@ input {
   color: var(--color-text);
 }
 
+/* 当直明けはインターバル違反より軽い扱いなので、警戒色を使わず中立の面に置く */
+.warning-item--soft {
+  background: var(--color-cell-bg);
+  color: var(--color-text-secondary);
+}
+
+.warning-item--soft .warning-item__day {
+  color: var(--color-text);
+}
+
 .warning-item__day {
   flex-shrink: 0;
   font-weight: 700;
