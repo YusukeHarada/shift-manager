@@ -263,7 +263,7 @@ cur.execute(
 
 ---
 
-## 9. iCal エクスポート（ical.js）
+## 9. UI を持たないモジュール（ical.js / analysis.js）
 
 iCal（.ics）はカレンダーデータの標準テキストフォーマットです。C言語の `fprintf` でファイルを書き出すのと本質的に同じです。
 
@@ -280,7 +280,28 @@ const lines = [
 const blob = new Blob([lines.join("\r\n")], { type: "text/calendar" });
 ```
 
-αオプションがある場合は同じ日に複数のイベントとして出力されます。
+αオプションは同じ日のイベントにまとめて出力します（`早番（残業・会議）` のような形）。同じ日に複数のイベントを作ると、Google カレンダーに再インポートしたときに予定が重複するためです。
+
+### 計算だけを切り出す（analysis.js）
+
+`analysis.js` は勤務の集計と疲労度の算出を担当します。**画面の描画を一切持たず、入力を受けて値を返すだけ**です。C でいえば、UI から切り離した純粋なライブラリ関数にあたります。
+
+```javascript
+// シフトデータを渡すと、集計・疲労度・警告をまとめて返す
+const result = analyzeMonth(2026, 9, shifts, prevShifts);
+result.workDays;      // 稼働日数
+result.fatigue;       // 日ごとの疲労度の配列
+result.warnings;      // 連勤・インターバルの警告
+```
+
+こう切り出しておくと、テストが**画面を経由せずに書けます**。
+
+```javascript
+// UI を立ち上げずに、計算だけを直接検証できる
+expect(getDuration({ base: "夜", alpha: [] })).toBe(1020);   // 夜勤は17時間
+```
+
+画面を通してテストすると、値が合わないときに「計算が間違っているのか、描画が間違っているのか」を切り分けられません。**本リポジトリでは、UI を持たない計算は必ずモジュールに切り出して直接テストする**方針にしています。
 
 ---
 
@@ -336,6 +357,8 @@ npm install       # pip install -r requirements.txt
 npm run dev       # python app.py（開発サーバー起動）
 npm test          # pytest
 npm run build     # gcc（本番ビルド）
+npm run lint      # flake8 / ruff（静的解析）
+npm run format    # black（コード整形）
 ```
 
 ---
