@@ -15,8 +15,9 @@ export const FATIGUE_LOAD = {
   "休":  -1.0,
 };
 
+// 当直は泊まりだが業務は軽く仮眠も取れるため、夜勤とは別物として軽く見る
 export const FATIGUE_ALPHA = {
-  "当":   2.5,
+  "当":   1.0,
   "残":   0.5,
   "会":   0.3,
   "前休": -0.4,
@@ -32,6 +33,8 @@ const STREAK_THRESHOLD = 5;         // これ以上の連勤で加点が始ま�
 const STREAK_PENALTY = 0.4;
 const INTERVAL_THRESHOLD = 11 * 60; // 勤務間インターバル（労働基準法の努力義務）
 const INTERVAL_PENALTY = 1.0;
+// 当直明けにそのまま勤務が入る並び。インターバル違反より軽く見る（仮眠できるため）
+const ON_CALL_GAP_PENALTY = 0.5;
 // 夜勤と明け休みが続いたときの定常値（約9）を指数 100 の目安に置く。
 // 日勤・早番・遅番・夜勤が一巡する通常のローテーションはこれで 40 未満に収まる
 const FATIGUE_SCALE = 9;
@@ -68,13 +71,20 @@ function buildTimeTable(list) {
 const BASE_TIMES = buildTimeTable(BASE_SHIFTS);
 const ALPHA_TIMES = buildTimeTable(ALPHA_TYPES);
 
+// 時刻を持つα（現状は当直だけ）。夜をまたぐ断続的な拘束なので通常の勤務と分けて扱う
+function getOnCallSegments(entry) {
+  return (entry?.alpha || [])
+    .filter(key => ALPHA_TIMES[key])
+    .map(key => ({ ...ALPHA_TIMES[key] }));
+}
+
+function getShiftSegments(entry) {
+  const times = BASE_TIMES[entry?.base ?? ""];
+  return times ? [{ ...times }] : [];
+}
+
 function getSegments(entry) {
-  const base = entry?.base ?? "";
-  const alpha = entry?.alpha || [];
-  const segments = [];
-  if (BASE_TIMES[base]) segments.push({ ...BASE_TIMES[base] });
-  alpha.forEach(key => { if (ALPHA_TIMES[key]) segments.push({ ...ALPHA_TIMES[key] }); });
-  return segments;
+  return [...getShiftSegments(entry), ...getOnCallSegments(entry)];
 }
 
 // 日勤に当直が付くと 17:30〜19:00 が空く。重なりと連続だけを繋いで実拘束を出す
@@ -89,9 +99,7 @@ function mergeSegments(segments) {
   return merged;
 }
 
-// その日の拘束の始まりと終わり。当直が付くと終業が翌朝まで延びる
-export function getDayWindow(entry) {
-  const segments = getSegments(entry);
+function toWindow(segments) {
   if (segments.length === 0) return null;
   return {
     start: Math.min(...segments.map(s => s.start)),
@@ -99,17 +107,42 @@ export function getDayWindow(entry) {
   };
 }
 
-// 拘束分数。休み・明け休み・未入力は時刻を持たないので 0
-export function getDuration(entry) {
-  return mergeSegments(getSegments(entry)).reduce((sum, s) => sum + (s.end - s.start), 0);
+// その日の拘束の始まりと終わり。当直が付くと終業が翌朝まで延びる
+export function getDayWindow(entry) {
+  return toWindow(getSegments(entry));
 }
 
-// 前日の終業から翌日の始業までの分数。どちらかが勤務でなければ判定しない
+function sumSegments(segments) {
+  return mergeSegments(segments).reduce((sum, s) => sum + (s.end - s.start), 0);
+}
+
+// 拘束分数。休み・明け休み・未入力は時刻を持たないので 0
+export function getDuration(entry) {
+  return sumSegments(getSegments(entry));
+}
+
+// そのうち当直のぶん。総拘束の内訳として別に出す
+export function getOnCallDuration(entry) {
+  return sumSegments(getOnCallSegments(entry));
+}
+
+// 前日の終業から翌日の始業までの分数。どちらかが勤務でなければ判定しない。
+// 11時間ルールの判定なので当直の時間帯は含めない（仮眠を取れる断続的労働で、
+// 通常のシフトと同じ拘束ではないため）。当直明けは getOnCallGap で別に見る
 export function getRestInterval(prevEntry, nextEntry) {
-  const prev = getDayWindow(prevEntry);
-  const next = getDayWindow(nextEntry);
+  const prev = toWindow(getShiftSegments(prevEntry));
+  const next = toWindow(getShiftSegments(nextEntry));
   if (!prev || !next) return null;
   return next.start + 1440 - prev.end;
+}
+
+// 当直は翌朝まで続くので、翌日にそのまま勤務が入ると休みらしい休みがない。
+// 当直終了から翌日の始業までの分数を返す（翌日が休みなら null）
+export function getOnCallGap(prevEntry, nextEntry) {
+  const onCall = toWindow(getOnCallSegments(prevEntry));
+  const next = toWindow(getShiftSegments(nextEntry));
+  if (!onCall || !next) return null;
+  return next.start + 1440 - onCall.end;
 }
 
 // 明け休みは夜勤の続きなので勤務日には数えない。
@@ -196,6 +229,7 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
   let running = 0;
   let totalMinutes = 0;
   let nightMinutes = 0;
+  let onCallMinutes = 0;
   let workDays = 0;
   let offDays = 0;
   let filledDays = 0;
@@ -211,8 +245,13 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
     // 連勤が続くほど回復が追いつかなくなる
     if (running >= STREAK_THRESHOLD) load += STREAK_PENALTY;
 
-    const interval = i > 0 ? getRestInterval(rows[i - 1].entry, row.entry) : null;
+    const prevEntry = i > 0 ? rows[i - 1].entry : null;
+    const interval = getRestInterval(prevEntry, row.entry);
     if (interval !== null && interval < INTERVAL_THRESHOLD) load += INTERVAL_PENALTY;
+
+    // 当直明けにそのまま勤務が入る並び。11時間ルールとは別枠で、加点も軽くする
+    const onCallGap = getOnCallGap(prevEntry, row.entry);
+    if (onCallGap !== null) load += ON_CALL_GAP_PENALTY;
 
     accumulated = Math.max(0, accumulated * DECAY + load);
 
@@ -227,6 +266,9 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
     if (interval !== null && interval < INTERVAL_THRESHOLD) {
       warnings.push({ type: "interval", day: row.day, minutes: interval });
     }
+    if (onCallGap !== null) {
+      warnings.push({ type: "oncall", day: row.day, minutes: onCallGap });
+    }
 
     if (base) {
       filledDays++;
@@ -239,6 +281,7 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
 
     const minutes = getDuration(row.entry);
     totalMinutes += minutes;
+    onCallMinutes += getOnCallDuration(row.entry);
     if (base === "夜") nightMinutes += minutes;
 
     const dow = new Date(year, month - 1, row.day).getDay();
@@ -278,6 +321,7 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
     hours: {
       totalMinutes,
       nightMinutes,
+      onCallMinutes,
       averageMinutes: workDays > 0 ? Math.round(totalMinutes / workDays) : 0,
     },
     weekday,
@@ -289,7 +333,9 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
 }
 
 export function formatMinutes(minutes) {
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
+  // 夜勤（翌9:30終業）の翌日に日勤が入ると前後が重なって負になる。0 に丸めて表示を壊さない
+  const total = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(total / 60);
+  const rest = total % 60;
   return rest === 0 ? `${hours}時間` : `${hours}時間${rest}分`;
 }
