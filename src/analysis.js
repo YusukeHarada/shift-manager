@@ -112,8 +112,10 @@ export function getRestInterval(prevEntry, nextEntry) {
   return next.start + 1440 - prev.end;
 }
 
-// 明け休みは夜勤の続きなので勤務日には数えない
-export function isWorkDay(base) {
+// 明け休みは夜勤の続きなので勤務日には数えない。
+// ただし当直のように時刻を持つαが付いていれば、休みの日でも実際に働いている
+export function isWorkDay(base, alpha = []) {
+  if (alpha.some(key => ALPHA_TIMES[key])) return true;
   return Boolean(base) && base !== "休" && base !== "明";
 }
 
@@ -136,7 +138,7 @@ export function toFatigueLevel(index) {
   return "low";
 }
 
-// 前月末から当月末までを1本の配列にする。月initial の連勤と疲労の持ち越しを正しく見るため
+// 前月末から当月末までを1本の配列にする。月初の連勤と疲労の持ち越しを正しく見るため
 function buildTimeline(year, month, shifts, prevShifts) {
   const prevYear = month === 1 ? year - 1 : year;
   const prevMonth = month === 1 ? 12 : month - 1;
@@ -157,7 +159,7 @@ function findStreaks(rows) {
   const runs = [];
   let start = null;
   rows.forEach((row, i) => {
-    if (isWorkDay(row.entry?.base ?? "")) {
+    if (isWorkDay(row.entry?.base ?? "", row.entry?.alpha || [])) {
       if (start === null) start = i;
       return;
     }
@@ -202,7 +204,7 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
   rows.forEach((row, i) => {
     const base = row.entry?.base ?? "";
     const alpha = row.entry?.alpha || [];
-    const work = isWorkDay(base);
+    const work = isWorkDay(base, alpha);
     running = work ? running + 1 : 0;
 
     let load = getDayLoad(row.entry);

@@ -119,6 +119,18 @@ describe("isWorkDay", () => {
     expect(isWorkDay("夜")).toBe(true);
     expect(isWorkDay("日")).toBe(true);
   });
+
+  it("当直が付いた日は休みでも勤務日に数える", () => {
+    // 夜勤明けの日に当直が入るのは実際によくある並び。12時間拘束なので休みではない
+    expect(isWorkDay("明", ["当"])).toBe(true);
+    expect(isWorkDay("休", ["当"])).toBe(true);
+    expect(isWorkDay("", ["当"])).toBe(true);
+  });
+
+  it("時刻を持たないαでは勤務日にならない", () => {
+    expect(isWorkDay("明", ["残"])).toBe(false);
+    expect(isWorkDay("休", ["会", "前休"])).toBe(false);
+  });
 });
 
 describe("getDayLoad", () => {
@@ -178,6 +190,32 @@ describe("analyzeMonth - 集計", () => {
     const r = analyzeMonth(2025, 11, fromPattern(["夜", "明", "休", "日"]), {});
     expect(r.workDays).toBe(2);
     expect(r.offDays).toBe(2);
+  });
+
+  it("夜勤明けの当直を勤務日と休日の両方から取りこぼさない", () => {
+    const r = analyzeMonth(2025, 11, fromPattern(["夜", ["明", ["当"]], "日"]), {});
+    expect(r.workDays).toBe(3);
+    expect(r.offDays).toBe(0);
+  });
+
+  it("当直が入った明け休みは連勤を切らない", () => {
+    // 夜勤 → 明+当直 → 日勤4日 は実質8連勤
+    const r = analyzeMonth(
+      2025, 11,
+      fromPattern(["日", "日", "日", "夜", ["明", ["当"]], "日", "日", "日", "休"]),
+      {}
+    );
+    expect(r.streaks.max).toBe(8);
+    const streak = r.warnings.find(w => w.type === "streak");
+    expect(streak).toMatchObject({ startDay: 1, day: 8, length: 8 });
+  });
+
+  it("当直の日も1日平均拘束時間の分母に入る", () => {
+    const r = analyzeMonth(2025, 11, fromPattern(["夜", ["明", ["当"]]]), {});
+    // 夜勤 17時間 + 当直 12時間 を 2日で割る
+    expect(r.workDays).toBe(2);
+    expect(r.hours.totalMinutes).toBe(1020 + 720);
+    expect(r.hours.averageMinutes).toBe((1020 + 720) / 2);
   });
 
   it("拘束時間を合計する", () => {
