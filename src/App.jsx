@@ -1,33 +1,15 @@
-import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
+import { BASE_SHIFTS, ALPHA_TYPES } from "./shifts";
+import { analyzeMonth, formatMinutes, FATIGUE_MID, FATIGUE_HIGH } from "./analysis";
 
-// color は bg の上で 4.5:1 以上になる濃さに揃えている（薄い塗り＋濃い文字）。
-// bg はカレンダーのセル全体を塗るため、月のパターンが一目で掴めるよう
-// 8種が同じくらいの濃さになるよう揃えている
-export const BASE_SHIFTS = [
-  { key: "日",  label: "日勤",     color: "#136b33", bg: "#dcf3e4", darkColor: "#4ade80", darkBg: "#15291d", start: "8:45",  end: "17:30" },
-  { key: "早1", label: "早番1",    color: "#175e9e", bg: "#dde9f8", darkColor: "#38bdf8", darkBg: "#12293b", start: "7:00",  end: "15:45" },
-  { key: "早",  label: "早番",     color: "#1d4ed8", bg: "#d6e2fb", darkColor: "#818cf8", darkBg: "#1e2142", start: "7:30",  end: "16:15" },
-  { key: "遅",  label: "遅番",     color: "#99460a", bg: "#fbeed0", darkColor: "#fbbf24", darkBg: "#392c10", start: "10:15", end: "19:00" },
-  // 夜勤は回数が多く一番読めてほしい。青系は早番・早番1・土曜で埋まっているためローズを充てている
-  { key: "夜",  label: "夜勤",     color: "#9d174d", bg: "#f9d9e6", darkColor: "#f7a8cb", darkBg: "#401329", start: "16:30", end: "翌9:30" },
-  // 夜勤の翌日に必ず来るのでローズ系で揃え、彩度を落として「休み」であることを示す。
-  // 完全に同色にすると内訳のバーとチップで夜勤と区別できなくなる
-  { key: "明",  label: "明け休み", color: "#8a4864", bg: "#f0dee6", darkColor: "#e5b3c6", darkBg: "#45333d" },
-  // 休み・未入力は中性色のため、枠線なしでは未入力セルの背景と紛れる。塗りに差をつけている
-  { key: "休",  label: "休み",     color: "#4b5563", bg: "#d9e0ea", darkColor: "#b3bdca", darkBg: "#313a46" },
-  { key: "",    label: "未入力",   color: "#5f6773", bg: "#eef0f3", darkColor: "#a5adb9", darkBg: "#2f333a" },
-];
+// シフト種別の定義は analysis.js と共有するため shifts.js に置いている。
+// 既存の import 元を変えずに済むよう、ここから再 export する
+export { BASE_SHIFTS, ALPHA_TYPES };
 
-export const ALPHA_TYPES = [
-  { key: "残", label: "残業", color: "#b91c1c", bg: "#fef2f2", darkColor: "#f87171", darkBg: "#3a1a17" },
-  { key: "会", label: "会議", color: "#b45309", bg: "#fffbeb", darkColor: "#fbbf24", darkBg: "#392c10" },
-  // 当直はαだけで扱う（ベースシフトからは削除済み）。勤務時間表に出すため start/end を持つ
-  { key: "当", label: "当直", color: "#0f766e", bg: "#d5f0ea", darkColor: "#2dd4bf", darkBg: "#0f2b28", start: "19:00", end: "翌7:00" },
-  { key: "前休", label: "AM休", color: "#0e7490", bg: "#ecfeff", darkColor: "#22d3ee", darkBg: "#0e2c33", group: "half" },
-  { key: "後休", label: "PM休", color: "#0369a1", bg: "#f0f9ff", darkColor: "#38bdf8", darkBg: "#0f2739", group: "half" },
-];
+// useMemo の依存が毎回変わらないよう、未取得の月は同じ参照を返す
+const EMPTY_SHIFTS = {};
 
 // 半休（AM休／PM休）は同時に成立しないため、同じ group のキーは1つだけ残す
 function toggleAlphaKey(prev, key) {
@@ -97,6 +79,14 @@ function IconList() {
       <circle cx="3.5" cy="6" r="1" fill="currentColor" stroke="none" />
       <circle cx="3.5" cy="12" r="1" fill="currentColor" stroke="none" />
       <circle cx="3.5" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function IconChart() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
     </svg>
   );
 }
@@ -642,6 +632,220 @@ function SummaryCards({ shifts }) {
   );
 }
 
+// 疲労度は日ごとの棒で見せる。しきい値超えだけ色を変え、
+// 残りは無彩色の濃淡にする（シフト色の色相はすべて埋まっているため）
+function FatigueChart({ fatigue, summary }) {
+  return (
+    <div className="fatigue-chart">
+      <div className="fatigue-chart__head">
+        <span className="fatigue-chart__stat">
+          平均<strong>{summary.average}</strong>
+        </span>
+        <span className="fatigue-chart__stat">
+          ピーク<strong>{summary.peak}</strong>
+        </span>
+      </div>
+      <div className="fatigue-chart__plot">
+        {fatigue.map(f => (
+          <div key={f.day} className="fatigue-chart__slot" title={`${f.day}日：${f.index}`}>
+            <div
+              className={`fatigue-chart__bar fatigue-chart__bar--${f.level}`}
+              style={{ height: `${Math.max(f.index, 2)}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="fatigue-chart__axis">
+        {[1, 10, 20, fatigue.length].map(d => (
+          <span key={d} className="fatigue-chart__tick">{d}</span>
+        ))}
+      </div>
+      <div className="fatigue-chart__legend">
+        <span className="fatigue-chart__key fatigue-chart__key--low" />ゆとり
+        <span className="fatigue-chart__key fatigue-chart__key--mid" />注意（{FATIGUE_MID}〜）
+        <span className="fatigue-chart__key fatigue-chart__key--high" />要休養（{FATIGUE_HIGH}〜）
+      </div>
+    </div>
+  );
+}
+
+function WarningList({ warnings }) {
+  if (warnings.length === 0) {
+    return <p className="analysis-empty">連勤・勤務間インターバルの警告はありません</p>;
+  }
+  return (
+    <ul className="warning-list">
+      {warnings.map((w, i) => (
+        <li key={`${w.type}-${w.day}-${i}`} className="warning-item">
+          <span className="warning-item__day">{w.day}日</span>
+          {w.type === "streak"
+            ? <span>{w.startDay}日から{w.length}連勤{w.fromPrevMonth ? "（前月から継続）" : ""}</span>
+            : <span>前日から{formatMinutes(w.minutes)}しか空いていません</span>
+          }
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// 「10時間48分」のような時刻表記は数字だけの値より長いので compact で字を落とす
+function StatTile({ label, value, unit, compact = false }) {
+  return (
+    <div className="stat-tile">
+      <div className="stat-tile__label">{label}</div>
+      <div className={`stat-tile__value${compact ? " stat-tile__value--compact" : ""}`}>
+        {value}{unit && <span className="stat-tile__unit">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+function StatGrid({ result }) {
+  const { hours, streaks } = result;
+  return (
+    <div className="stat-grid">
+      <StatTile label="稼働日数" value={result.workDays} unit="日" />
+      <StatTile label="休日数" value={result.offDays} unit="日" />
+      <StatTile label="総拘束時間" value={Math.round(hours.totalMinutes / 60)} unit="時間" />
+      <StatTile label="うち夜勤" value={Math.round(hours.nightMinutes / 60)} unit="時間" />
+      <StatTile label="1日平均" value={formatMinutes(hours.averageMinutes)} compact />
+      <StatTile label="最大連勤" value={streaks.max} unit="日" />
+      <StatTile
+        label="最短インターバル"
+        value={streaks.shortestInterval === null ? "—" : formatMinutes(streaks.shortestInterval)}
+        compact
+      />
+    </div>
+  );
+}
+
+// 種別ごとの回数と割合。バーは各種別の色で塗り、割合をそのまま幅にする
+function ShiftCountTable({ counts, types, total }) {
+  const items = types.filter(t => t.key && counts[t.key] > 0);
+  if (items.length === 0) return null;
+  return (
+    <div className="count-list">
+      {items.map(t => {
+        const count = counts[t.key];
+        const ratio = total > 0 ? (count / total) * 100 : 0;
+        return (
+          <div key={t.key} className="count-row" style={colorVars(t)}>
+            <span className="count-row__label">{t.label}</span>
+            <span className="count-row__track">
+              <span className="count-row__fill" style={{ width: `${ratio}%` }} />
+            </span>
+            <span className="count-row__count">{count}</span>
+            <span className="count-row__ratio">{Math.round(ratio)}%</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// 曜日ごとの偏りを見る。濃さは同じ行の最大回数を基準にする
+function WeekdayHeatmap({ weekday, weekStart }) {
+  const labels = getWeekdayLabels(weekStart);
+  const offset = weekStart === "sun" ? 0 : 1;
+  const rows = BASE_SHIFTS.filter(
+    s => s.key && weekday.some(w => w.counts[s.key] > 0)
+  );
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="heatmap">
+      <div className="heatmap__row heatmap__row--head">
+        <span className="heatmap__label" />
+        {labels.map((w, i) => {
+          const dow = (i + offset) % 7;
+          return (
+            <span
+              key={`${w}-${i}`}
+              className="heatmap__head"
+              style={{ color: dow === 0 ? "var(--color-sunday)" : dow === 6 ? "var(--color-saturday)" : "var(--color-text-muted)" }}
+            >
+              {w}
+            </span>
+          );
+        })}
+      </div>
+      {rows.map(s => {
+        const max = Math.max(...weekday.map(w => w.counts[s.key] || 0));
+        return (
+          <div key={s.key} className="heatmap__row">
+            <span className="heatmap__label" style={colorVars(s)}>{s.label}</span>
+            {labels.map((w, i) => {
+              const count = weekday[(i + offset) % 7].counts[s.key] || 0;
+              return (
+                <span
+                  key={`${s.key}-${i}`}
+                  className="heatmap__cell"
+                  style={{ "--heat": max > 0 ? count / max : 0 }}
+                >
+                  {count > 0 ? count : ""}
+                </span>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AnalysisSection({ title, note, children }) {
+  return (
+    <section className="analysis-section">
+      <h2 className="analysis-section__title">
+        {title}
+        {note && <span className="analysis-section__note">{note}</span>}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function AnalysisView({ year, month, shifts, prevShifts, weekStart }) {
+  const result = useMemo(
+    () => analyzeMonth(year, month, shifts, prevShifts),
+    [year, month, shifts, prevShifts]
+  );
+
+  if (result.filledDays === 0) {
+    return <p className="analysis-empty">シフトを入力すると分析が表示されます</p>;
+  }
+
+  const alphaTotal = Object.values(result.alphaCounts).reduce((sum, n) => sum + n, 0);
+
+  return (
+    <div className="analysis-view">
+      <AnalysisSection title="疲労度の推移" note="前月末からの蓄積を含む">
+        <FatigueChart fatigue={result.fatigue} summary={result.summary} />
+      </AnalysisSection>
+
+      <AnalysisSection title="気をつけたい日">
+        <WarningList warnings={result.warnings} />
+      </AnalysisSection>
+
+      <AnalysisSection title="今月の勤務">
+        <StatGrid result={result} />
+      </AnalysisSection>
+
+      <AnalysisSection title="シフト種別の内訳">
+        <ShiftCountTable counts={result.baseCounts} types={BASE_SHIFTS} total={result.filledDays} />
+        {alphaTotal > 0 && (
+          /* αは1日に複数付くので割合はα同士ではなく「入力済みの日のうち何%に付いたか」で出す */
+          <ShiftCountTable counts={result.alphaCounts} types={ALPHA_TYPES} total={result.filledDays} />
+        )}
+      </AnalysisSection>
+
+      <AnalysisSection title="曜日別の傾向">
+        <WeekdayHeatmap weekday={result.weekday} weekStart={weekStart} />
+      </AnalysisSection>
+    </div>
+  );
+}
+
 export default function App({ session: _session }) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -660,6 +864,7 @@ export default function App({ session: _session }) {
   const [direction, setDirection] = useState(1);
   const [toast, setToast] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [prevShiftsCache, setPrevShiftsCache] = useState({});
   const [weekStart, setWeekStart] = useState(() => localStorage.getItem(WEEK_START_KEY) || "mon");
   const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "default");
   const [mode, setMode] = useState(() => localStorage.getItem(MODE_KEY) || "auto");
@@ -709,6 +914,23 @@ export default function App({ session: _session }) {
       setLoading(false);
     }
   }, [year, month]);
+
+  const prevKey = month === 1 ? `${year - 1}-12` : `${year}-${month - 1}`;
+  const prevShifts = prevShiftsCache[prevKey] || EMPTY_SHIFTS;
+
+  // 分析ビューは前月末の数日を疲労度の初期値と連勤判定に使う。
+  // カレンダーとリストには不要なので、分析を開いたときだけ取りにいく。
+  // 取得済みの月はキャッシュから引くので、月を行き来しても再取得しない
+  useEffect(() => {
+    if (view !== "analysis" || prevShiftsCache[prevKey]) return;
+    const [prevYear, prevMonth] = prevKey.split("-").map(Number);
+    let cancelled = false;
+    fetchShifts(prevYear, prevMonth)
+      // 前月が取れなくても当月の分析は出せる。空で埋めてエラーバナーは出さない
+      .catch(() => ({}))
+      .then(data => { if (!cancelled) setPrevShiftsCache(c => ({ ...c, [prevKey]: data })); });
+    return () => { cancelled = true; };
+  }, [view, prevKey, prevShiftsCache]);
 
   useEffect(() => {
     loadShifts();
@@ -891,7 +1113,7 @@ export default function App({ session: _session }) {
             )}
 
             <div className="view-tabs">
-              {[["calendar", "カレンダー", IconCalendar], ["list", "リスト", IconList]].map(([v, label, Icon]) => (
+              {[["calendar", "カレンダー", IconCalendar], ["list", "リスト", IconList], ["analysis", "分析", IconChart]].map(([v, label, Icon]) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
@@ -921,16 +1143,21 @@ export default function App({ session: _session }) {
               onTouchEnd={handleTouchEnd}
             >
               <div key={`${year}-${month}-${view}`} className={`month-transition${direction < 0 ? " month-transition--backward" : ""}`}>
-                {view === "calendar"
-                  ? <CalendarView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} inputMode={inputMode} selectedDates={selectedDates} weekStart={weekStart} />
-                  : <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} weekStart={weekStart} />
-                }
+                {view === "calendar" && (
+                  <CalendarView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} inputMode={inputMode} selectedDates={selectedDates} weekStart={weekStart} />
+                )}
+                {view === "list" && (
+                  <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} weekStart={weekStart} />
+                )}
+                {view === "analysis" && (
+                  <AnalysisView year={year} month={month} shifts={shifts} prevShifts={prevShifts} weekStart={weekStart} />
+                )}
               </div>
             </div>
 
-            <SummaryCards shifts={shifts} />
+            {view !== "analysis" && <SummaryCards shifts={shifts} />}
 
-            {!inputMode && <p className="hint-text">日付をタップしてシフトを入力できます</p>}
+            {view !== "analysis" && !inputMode && <p className="hint-text">日付をタップしてシフトを入力できます</p>}
           </>
         )}
       </div>

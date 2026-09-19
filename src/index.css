@@ -412,11 +412,13 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 10px;
+  gap: 6px;
+  padding: 10px 6px;
   border: none;
   border-radius: var(--radius-full);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
+  /* 3つ並ぶと「カレンダー」が折り返すため、ラベルは1行に固定する */
+  white-space: nowrap;
   min-height: 44px;
   transition: background var(--transition), color var(--transition), box-shadow var(--transition);
 }
@@ -426,6 +428,10 @@ input {
   color: var(--color-text);
   font-weight: 600;
   box-shadow: var(--shadow-raised);
+}
+
+.view-tab svg {
+  flex-shrink: 0;
 }
 
 .view-tab--inactive {
@@ -817,6 +823,277 @@ input {
   border-radius: var(--radius-full);
   padding: 1px 6px;
 }
+
+/* 分析ビュー。シフト色の色相はすべて埋まっているため、疲労度とヒートマップの
+   強弱は無彩色の --color-primary の濃度だけで表し、警戒色にのみ --color-danger を使う */
+.analysis-view {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.analysis-section__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.analysis-section__note {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.analysis-empty {
+  margin: 0;
+  padding: 14px 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.fatigue-chart__head {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 8px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.fatigue-chart__stat strong {
+  margin-left: 4px;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.fatigue-chart__plot {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 96px;
+}
+
+.fatigue-chart__slot {
+  display: flex;
+  align-items: flex-end;
+  flex: 1 1 0;
+  height: 100%;
+  border-radius: var(--radius-xs);
+  background: var(--color-cell-bg);
+  overflow: hidden;
+}
+
+.fatigue-chart__bar {
+  width: 100%;
+  border-radius: var(--radius-xs);
+  background: var(--color-primary);
+  opacity: 0.35;
+  transition: height var(--transition);
+}
+
+.fatigue-chart__bar--mid { opacity: 0.72; }
+
+.fatigue-chart__bar--high {
+  background: var(--color-danger);
+  opacity: 1;
+}
+
+.fatigue-chart__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.fatigue-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.fatigue-chart__key {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.fatigue-chart__key--low { background: var(--color-primary); opacity: 0.35; }
+.fatigue-chart__key--mid { background: var(--color-primary); opacity: 0.72; }
+.fatigue-chart__key--high { background: var(--color-danger); }
+
+.fatigue-chart__key:not(:first-child) { margin-left: 8px; }
+
+.warning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.warning-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-danger-light);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.warning-item__day {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-danger);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.stat-tile {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-cell-bg);
+}
+
+.stat-tile__label {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.stat-tile__value {
+  margin-top: 2px;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.stat-tile__value--compact {
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+
+.stat-tile__unit {
+  margin-left: 2px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.count-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.count-list + .count-list { margin-top: 12px; }
+
+.count-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.count-row__label {
+  flex: 0 0 58px;
+  color: var(--sc);
+  color: light-dark(var(--sc), var(--scd));
+  font-weight: 600;
+}
+
+.count-row__track {
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-cell-bg);
+  overflow: hidden;
+}
+
+.count-row__fill {
+  display: block;
+  height: 100%;
+  /* 1回だけの種別でも棒が見えるようにする */
+  min-width: 6px;
+  border-radius: var(--radius-full);
+  background: var(--sc);
+  background: light-dark(var(--sc), var(--scd));
+}
+
+.count-row__count {
+  flex: 0 0 auto;
+  min-width: 22px;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.count-row__ratio {
+  flex: 0 0 34px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.heatmap__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmap__label {
+  flex: 0 0 58px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--sc);
+  color: light-dark(var(--sc), var(--scd));
+}
+
+.heatmap__head,
+.heatmap__cell {
+  flex: 1 1 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap__cell {
+  padding: 5px 0;
+  border-radius: var(--radius-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  /* 0 回のマスも薄く残して、行の並びが崩れないようにする */
+  background: color-mix(in srgb, var(--color-primary) calc(var(--heat) * 28%), var(--color-cell-bg));
+}
+
+.heatmap__row--head .heatmap__head { font-weight: 500; }
 
 /* Shift input panel */
 .input-panel {
