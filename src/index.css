@@ -856,6 +856,49 @@ input {
   color: var(--color-text-muted);
 }
 
+/* 今の疲労度。グラフから今日の棒を探さずに読めるよう、値だけ大きく出す */
+.fatigue-now {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-cell-bg);
+}
+
+.fatigue-now__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.fatigue-now__value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.fatigue-now__level {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* 要休養のときだけ警戒色。グラフの棒と同じ規則 */
+.fatigue-now--high .fatigue-now__value,
+.fatigue-now--high .fatigue-now__level {
+  color: var(--color-danger);
+}
+
+.fatigue-now--high {
+  background: var(--color-danger-light);
+}
+
+.fatigue-now__forecast {
+  margin: 6px 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
 .fatigue-chart__head {
   display: flex;
   gap: 14px;

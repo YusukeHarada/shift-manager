@@ -6,6 +6,7 @@ import {
   getRestInterval,
   getOnCallGap,
   getOnCallDuration,
+  getFatigueOutlook,
   isWorkDay,
   getDayLoad,
   analyzeMonth,
@@ -82,6 +83,43 @@ describe("getDuration", () => {
 
   it("時刻を持たないαは拘束時間に影響しない", () => {
     expect(getDuration(entry("日", ["残", "会"]))).toBe(525);
+  });
+});
+
+describe("半休", () => {
+  it("半休の日は4時間勤務になる", () => {
+    expect(getDuration(entry("日", ["前休"]))).toBe(240);
+    expect(getDuration(entry("日", ["後休"]))).toBe(240);
+    expect(getDuration(entry("遅", ["前休"]))).toBe(240);
+  });
+
+  it("AM休は終業に寄せ、PM休は始業に寄せる", () => {
+    // 日勤 8:45-17:30。AM休なら 13:30-17:30、PM休なら 8:45-12:45
+    expect(getDayWindow(entry("日", ["前休"]))).toEqual({ start: 810, end: 1050 });
+    expect(getDayWindow(entry("日", ["後休"]))).toEqual({ start: 525, end: 765 });
+  });
+
+  it("同じ日の当直は削られない", () => {
+    expect(getDuration(entry("日", ["前休", "当"]))).toBe(240 + 720);
+    expect(getOnCallDuration(entry("日", ["前休", "当"]))).toBe(720);
+  });
+
+  it("半休でインターバルが伸びる", () => {
+    // 遅番の始業が 10:15 → 15:00 になるぶん、当直明けの空きが広がる
+    expect(getOnCallGap(entry("明", ["当"]), entry("遅"))).toBe(195);
+    expect(getOnCallGap(entry("明", ["当"]), entry("遅", ["前休"]))).toBe(480);
+  });
+
+  it("時刻を持たないベースでは何も起きない", () => {
+    expect(getDuration(entry("休", ["前休"]))).toBe(0);
+    expect(getDuration(entry("明", ["後休"]))).toBe(0);
+    expect(getDayWindow(entry("休", ["前休"]))).toBeNull();
+  });
+
+  it("夜勤に半休を付けても一律に4時間として扱う", () => {
+    // 実運用では起きない組み合わせ。例外を作らず素直に適用することを固定しておく
+    expect(getDuration(entry("夜", ["前休"]))).toBe(240);
+    expect(getDayWindow(entry("夜", ["前休"]))).toEqual({ start: 1770, end: 2010 });
   });
 });
 
@@ -401,6 +439,55 @@ describe("analyzeMonth - 警告", () => {
     const r = analyzeMonth(2025, 11, fromPattern(["日", "日", "日", "日", "日", "休", ["日", ["当"]], "日"]), {});
     const days = r.warnings.map(w => w.day);
     expect(days).toEqual([...days].sort((a, b) => a - b));
+  });
+});
+
+describe("getFatigueOutlook", () => {
+  const series = (...pairs) =>
+    pairs.map(([day, index]) => ({
+      day,
+      index,
+      level: index >= 70 ? "high" : index >= 40 ? "mid" : "low",
+      streak: 0,
+    }));
+
+  it("今日の要素を返す", () => {
+    const o = getFatigueOutlook(series([1, 10], [2, 30], [3, 50]), 2);
+    expect(o.today).toMatchObject({ day: 2, index: 30, level: "low" });
+  });
+
+  it("今日が範囲に無ければ null", () => {
+    expect(getFatigueOutlook(series([1, 10], [2, 30]), 5)).toBeNull();
+    expect(getFatigueOutlook([], 1)).toBeNull();
+  });
+
+  it("明日以降の最大をピークにする", () => {
+    const o = getFatigueOutlook(series([1, 90], [2, 20], [3, 55], [4, 45]), 2);
+    // 今日より前の 90 は見ない
+    expect(o.peak).toMatchObject({ day: 3, index: 55 });
+  });
+
+  it("同じ値なら早い日を返す", () => {
+    const o = getFatigueOutlook(series([1, 10], [2, 60], [3, 60]), 1);
+    expect(o.peak.day).toBe(2);
+  });
+
+  it("要休養に達する最初の日を返す", () => {
+    const o = getFatigueOutlook(series([1, 20], [2, 50], [3, 75], [4, 90]), 1);
+    expect(o.reachesHigh).toMatchObject({ day: 3, index: 75 });
+  });
+
+  it("今日が要休養でも今日は拾わない", () => {
+    const o = getFatigueOutlook(series([1, 80], [2, 30], [3, 20]), 1);
+    expect(o.today.level).toBe("high");
+    expect(o.reachesHigh).toBeNull();
+  });
+
+  it("月末は先が無いので peak も reachesHigh も null", () => {
+    const o = getFatigueOutlook(series([1, 20], [2, 60]), 2);
+    expect(o.today.index).toBe(60);
+    expect(o.peak).toBeNull();
+    expect(o.reachesHigh).toBeNull();
   });
 });
 

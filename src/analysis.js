@@ -28,6 +28,9 @@ export const FATIGUE_ALPHA = {
 // （getBaseInfo が未知キーを表示上残すのと同じ方針）
 const UNKNOWN_LOAD = 1.2;
 
+// 半休の日の勤務時間。AM休は終業に寄せ、PM休は始業に寄せる
+const HALF_DAY_MINUTES = 4 * 60;
+
 const DECAY = 0.75;                 // 前日の疲労が翌日に残る割合
 const STREAK_THRESHOLD = 5;         // これ以上の連勤で加点が始まる
 const STREAK_PENALTY = 0.4;
@@ -78,9 +81,15 @@ function getOnCallSegments(entry) {
     .map(key => ({ ...ALPHA_TIMES[key] }));
 }
 
+// 半休はどちらの半分を休むかで時刻の寄せ方が変わるため、キーを直接見るしかない。
+// ALPHA_TYPES の group: "half" だけでは前後が決まらない
 function getShiftSegments(entry) {
   const times = BASE_TIMES[entry?.base ?? ""];
-  return times ? [{ ...times }] : [];
+  if (!times) return [];
+  const alpha = entry?.alpha || [];
+  if (alpha.includes("前休")) return [{ start: times.end - HALF_DAY_MINUTES, end: times.end }];
+  if (alpha.includes("後休")) return [{ start: times.start, end: times.start + HALF_DAY_MINUTES }];
+  return [{ ...times }];
 }
 
 function getSegments(entry) {
@@ -330,6 +339,20 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
     summary: { peak, average },
     warnings,
   };
+}
+
+// 今日の値と、この先どこまで上がるかを取り出す。先のシフトは入力済みなので
+// 「いつピークが来るか」が事前に分かる。analyzeMonth は今日を知らないので別関数にする
+export function getFatigueOutlook(fatigue, todayDay) {
+  const today = fatigue.find(f => f.day === todayDay);
+  if (!today) return null;
+
+  const ahead = fatigue.filter(f => f.day > todayDay);
+  // 同じ値なら早いほうを返す（先に身構えられるため）
+  const peak = ahead.reduce((max, f) => (max === null || f.index > max.index ? f : max), null);
+  const reachesHigh = ahead.find(f => f.level === "high") || null;
+
+  return { today, peak, reachesHigh };
 }
 
 export function formatMinutes(minutes) {
