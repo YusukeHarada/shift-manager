@@ -663,7 +663,42 @@ function FatigueNow({ outlook, month }) {
 
 // 疲労度は日ごとの棒で見せる。しきい値超えだけ色を変え、
 // 残りは無彩色の濃淡にする（シフト色の色相はすべて埋まっているため）
-function FatigueChart({ fatigue, summary }) {
+// 選んだ日の内訳。棒の高さのうちどこまでが持ち越しかを数字でも出す
+function FatigueDetail({ entry, item, year, month }) {
+  const base = entry?.base ?? "";
+  const alpha = entry?.alpha || [];
+  const added = item.index - item.carry;
+  const dow = WEEKDAYS[new Date(year, month - 1, item.day).getDay()];
+
+  return (
+    <div className="fatigue-chart__detail">
+      <div className="fatigue-chart__detail-head">
+        <span className="fatigue-chart__detail-date">{month}月{item.day}日（{dow}）</span>
+        <ShiftBadge shiftKey={base} size="sm" full />
+        {alpha.map(k => <AlphaBadge key={k} alphaKey={k} />)}
+        <span className="fatigue-chart__detail-index">
+          {item.index}
+          <span className="fatigue-chart__detail-level">{FATIGUE_LEVEL_LABELS[item.level]}</span>
+        </span>
+      </div>
+      <p className="fatigue-chart__detail-break">
+        前日までの持ち越し {item.carry}
+        {added > 0 ? ` ＋ その日の勤務 ${added}` : "（その日は積んでいません）"}
+      </p>
+    </div>
+  );
+}
+
+// 棒は「前日までの持ち越し」の上に「その日の勤務」を積んだ形。境目は明線で示す。
+// 各日の値はタップで読む（スマホにはホバーが無いため title では読めない）
+function FatigueChart({ fatigue, summary, shifts, year, month, todayDay }) {
+  const [selectedDay, setSelectedDay] = useState(todayDay);
+
+  // 月を移ると選択は今日（当月でなければ未選択）に戻す
+  useEffect(() => { setSelectedDay(todayDay); }, [todayDay, year, month]);
+
+  const selected = fatigue.find(f => f.day === selectedDay) || null;
+
   return (
     <div className="fatigue-chart">
       <div className="fatigue-chart__head">
@@ -675,25 +710,50 @@ function FatigueChart({ fatigue, summary }) {
         </span>
       </div>
       <div className="fatigue-chart__plot">
-        {fatigue.map(f => (
-          <div key={f.day} className="fatigue-chart__slot" title={`${f.day}日：${f.index}`}>
-            <div
-              className={`fatigue-chart__bar fatigue-chart__bar--${f.level}`}
-              style={{ height: `${Math.max(f.index, 2)}%` }}
-            />
-          </div>
-        ))}
+        {fatigue.map(f => {
+          const added = f.index - f.carry;
+          let slotClass = "fatigue-chart__slot";
+          if (f.day === todayDay) slotClass += " fatigue-chart__slot--today";
+          if (f.day === selectedDay) slotClass += " fatigue-chart__slot--selected";
+          return (
+            <button
+              key={f.day}
+              type="button"
+              className={slotClass}
+              aria-label={`${month}月${f.day}日 疲労度${f.index}`}
+              onClick={() => setSelectedDay(d => (d === f.day ? null : f.day))}
+            >
+              <span
+                className={`fatigue-chart__bar fatigue-chart__bar--${f.level}`}
+                style={{ height: `${Math.max(f.index, 2)}%` }}
+              />
+              {added > 0 && (
+                /* 持ち越しとその日の勤務の境目。棒の opacity の外に置かないと線が沈む */
+                <span className="fatigue-chart__split" style={{ bottom: `${f.carry}%` }} />
+              )}
+            </button>
+          );
+        })}
       </div>
       <div className="fatigue-chart__axis">
         {[1, 10, 20, fatigue.length].map(d => (
           <span key={d} className="fatigue-chart__tick">{d}</span>
         ))}
       </div>
+      {selected && (
+        <FatigueDetail
+          entry={shifts[String(selected.day)]}
+          item={selected}
+          year={year}
+          month={month}
+        />
+      )}
       <div className="fatigue-chart__legend">
         <span className="fatigue-chart__key fatigue-chart__key--low" />ゆとり
         <span className="fatigue-chart__key fatigue-chart__key--mid" />注意（{FATIGUE_MID}〜）
         <span className="fatigue-chart__key fatigue-chart__key--high" />要休養（{FATIGUE_HIGH}〜）
       </div>
+      <p className="fatigue-chart__hint">棒をタップすると内訳が出ます</p>
     </div>
   );
 }
@@ -868,7 +928,14 @@ function AnalysisView({ year, month, shifts, prevShifts, weekStart, todayDay }) 
       )}
 
       <AnalysisSection title="疲労度の推移" note="前月末からの蓄積を含む">
-        <FatigueChart fatigue={result.fatigue} summary={result.summary} />
+        <FatigueChart
+          fatigue={result.fatigue}
+          summary={result.summary}
+          shifts={shifts}
+          year={year}
+          month={month}
+          todayDay={todayDay}
+        />
       </AnalysisSection>
 
       <AnalysisSection title="気をつけたい日">

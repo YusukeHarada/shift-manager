@@ -262,12 +262,16 @@ export function analyzeMonth(year, month, shifts, prevShifts = {}) {
     const onCallGap = getOnCallGap(prevEntry, row.entry);
     if (onCallGap !== null) load += ON_CALL_GAP_PENALTY;
 
-    accumulated = Math.max(0, accumulated * DECAY + load);
+    // 減衰して残った前日ぶん。棒の内訳を出すために合計と分けて持つ
+    const carried = Math.max(0, accumulated * DECAY);
+    accumulated = Math.max(0, carried + load);
 
     if (!row.inMonth) return;
 
     const index = toFatigueIndex(accumulated);
-    fatigue.push({ day: row.day, index, level: toFatigueLevel(index), streak: running });
+    // 休みの日は負荷が負になり合計が持ち越しを下回る。その場合は棒すべてが持ち越し
+    const carry = Math.min(toFatigueIndex(carried), index);
+    fatigue.push({ day: row.day, index, carry, level: toFatigueLevel(index), streak: running });
 
     if (interval !== null && (shortestInterval === null || interval < shortestInterval)) {
       shortestInterval = interval;
