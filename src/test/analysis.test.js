@@ -127,6 +127,18 @@ describe("getDayLoad", () => {
     expect(getDayLoad(entry("休"))).toBe(FATIGUE_LOAD["休"]);
   });
 
+  it("日勤帯は始業が早いほど負荷が軽い", () => {
+    // 遅番 10:15 → 日勤 8:45 → 早番 7:30 → 早番1 7:00
+    expect(getDayLoad(entry("遅"))).toBeGreaterThan(getDayLoad(entry("日")));
+    expect(getDayLoad(entry("日"))).toBeGreaterThan(getDayLoad(entry("早")));
+    expect(getDayLoad(entry("早"))).toBeGreaterThan(getDayLoad(entry("早1")));
+  });
+
+  it("夜勤がいちばん重い", () => {
+    const others = ["遅", "日", "早", "早1"].map(k => getDayLoad(entry(k)));
+    expect(Math.max(...others)).toBeLessThan(getDayLoad(entry("夜")));
+  });
+
   it("αの重みを足す", () => {
     expect(getDayLoad(entry("日", ["当"]))).toBeCloseTo(FATIGUE_LOAD["日"] + FATIGUE_ALPHA["当"]);
     expect(getDayLoad(entry("日", ["残", "会"]))).toBeCloseTo(
