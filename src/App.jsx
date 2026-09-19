@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 import { BASE_SHIFTS, ALPHA_TYPES } from "./shifts";
-import { analyzeMonth, formatMinutes, FATIGUE_MID, FATIGUE_HIGH } from "./analysis";
+import { analyzeMonth, getFatigueOutlook, formatMinutes, FATIGUE_MID, FATIGUE_HIGH } from "./analysis";
 
 // シフト種別の定義は analysis.js と共有するため shifts.js に置いている。
 // 既存の import 元を変えずに済むよう、ここから再 export する
@@ -632,6 +632,35 @@ function SummaryCards({ shifts }) {
   );
 }
 
+const FATIGUE_LEVEL_LABELS = { low: "ゆとり", mid: "注意", high: "要休養" };
+
+// 今日の値を大きく出す。グラフの中から今日の棒を探さなくても分かるようにするため。
+// 先のシフトは入力済みなので、このあとどこまで上がるかも併せて出す
+function FatigueNow({ outlook, month }) {
+  const { today, peak, reachesHigh } = outlook;
+
+  // peak が null なのは先の日が1日も無いときだけ。翌月は取得していないので
+  // 月末は「下がる」とも言えない。何も言わないほうが正直
+  let forecast = null;
+  if (reachesHigh) {
+    forecast = `このあと ${month}月${reachesHigh.day}日 に ${reachesHigh.index}（要休養）まで上がります`;
+  } else if (peak && peak.index > today.index) {
+    forecast = `このあと ${month}月${peak.day}日 に ${peak.index} まで上がります`;
+  } else if (peak) {
+    forecast = "このあとは下がっていきます";
+  }
+
+  return (
+    <div className={`fatigue-now fatigue-now--${today.level}`}>
+      <div className="fatigue-now__head">
+        <span className="fatigue-now__value">{today.index}</span>
+        <span className="fatigue-now__level">{FATIGUE_LEVEL_LABELS[today.level]}</span>
+      </div>
+      {forecast && <p className="fatigue-now__forecast">{forecast}</p>}
+    </div>
+  );
+}
+
 // 疲労度は日ごとの棒で見せる。しきい値超えだけ色を変え、
 // 残りは無彩色の濃淡にする（シフト色の色相はすべて埋まっているため）
 function FatigueChart({ fatigue, summary }) {
@@ -816,7 +845,7 @@ function AnalysisSection({ title, note, children }) {
   );
 }
 
-function AnalysisView({ year, month, shifts, prevShifts, weekStart }) {
+function AnalysisView({ year, month, shifts, prevShifts, weekStart, todayDay }) {
   const result = useMemo(
     () => analyzeMonth(year, month, shifts, prevShifts),
     [year, month, shifts, prevShifts]
@@ -827,9 +856,17 @@ function AnalysisView({ year, month, shifts, prevShifts, weekStart }) {
   }
 
   const alphaTotal = Object.values(result.alphaCounts).reduce((sum, n) => sum + n, 0);
+  // 当月を見ているときだけ。todayDay は当月でなければ null
+  const outlook = todayDay === null ? null : getFatigueOutlook(result.fatigue, todayDay);
 
   return (
     <div className="analysis-view">
+      {outlook && (
+        <AnalysisSection title="今の疲労度">
+          <FatigueNow outlook={outlook} month={month} />
+        </AnalysisSection>
+      )}
+
       <AnalysisSection title="疲労度の推移" note="前月末からの蓄積を含む">
         <FatigueChart fatigue={result.fatigue} summary={result.summary} />
       </AnalysisSection>
@@ -1050,8 +1087,10 @@ export default function App({ session: _session }) {
     else nextMonth();
   };
 
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
+
   let nextWork = null;
-  if (today.getFullYear() === year && today.getMonth() + 1 === month) {
+  if (isCurrentMonth) {
     const days = getDaysInMonth(year, month);
     for (let d = today.getDate(); d <= days; d++) {
       const entry = shifts[String(d)];
@@ -1161,7 +1200,7 @@ export default function App({ session: _session }) {
                   <ListView year={year} month={month} shifts={shifts} onDayClick={handleDayClick} weekStart={weekStart} />
                 )}
                 {view === "analysis" && (
-                  <AnalysisView year={year} month={month} shifts={shifts} prevShifts={prevShifts} weekStart={weekStart} />
+                  <AnalysisView year={year} month={month} shifts={shifts} prevShifts={prevShifts} weekStart={weekStart} todayDay={isCurrentMonth ? today.getDate() : null} />
                 )}
               </div>
             </div>

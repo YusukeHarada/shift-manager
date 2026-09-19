@@ -776,6 +776,58 @@ describe("分析ビュー", () => {
     expect(document.querySelectorAll(".heatmap__cell").length).toBeGreaterThan(0);
   });
 
+  it("当月を見ているときは今の疲労度を出す", async () => {
+    // システム時刻は 2025年11月1日
+    await openAnalysis({
+      "1": { base: "夜", alpha: [] },
+      "2": { base: "明", alpha: [] },
+    });
+
+    const now = document.querySelector(".fatigue-now");
+    expect(now).toBeInTheDocument();
+    // グラフの1日目の値と一致する
+    expect(screen.getByText("今の疲労度")).toBeInTheDocument();
+    expect(now.querySelector(".fatigue-now__value").textContent).toBe("33");
+  });
+
+  it("別の月に移動すると今の疲労度は消える", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    expect(document.querySelector(".fatigue-now")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("‹"));
+    await waitFor(() => expect(document.querySelector(".fatigue-now")).toBeNull());
+  });
+
+  it("この先で要休養に達するなら予報を出す", async () => {
+    const shifts = {};
+    // 1日目から連勤を重ねて後半で要休養に入る組み立て
+    for (let d = 1; d <= 12; d++) shifts[String(d)] = { base: "夜", alpha: [] };
+    await openAnalysis(shifts);
+
+    expect(document.querySelector(".fatigue-now__forecast").textContent).toMatch(/要休養）まで上がります$/);
+  });
+
+  it("この先が下がるだけなら予報もそう出す", async () => {
+    await openAnalysis({
+      "1": { base: "夜", alpha: [] },
+      "2": { base: "休", alpha: [] },
+      "3": { base: "休", alpha: [] },
+    });
+
+    expect(document.querySelector(".fatigue-now__forecast").textContent).toBe("このあとは下がっていきます");
+  });
+
+  it("月末は先が無いので予報を出さない", async () => {
+    vi.setSystemTime(new Date(2025, 10, 30));
+    await openAnalysis({
+      "29": { base: "日", alpha: [] },
+      "30": { base: "夜", alpha: [] },
+    });
+
+    expect(document.querySelector(".fatigue-now")).toBeInTheDocument();
+    expect(document.querySelector(".fatigue-now__forecast")).toBeNull();
+  });
+
   it("シフトが1件も無い月はプレースホルダを出す", async () => {
     await openAnalysis({});
     expect(screen.getByText("シフトを入力すると分析が表示されます")).toBeInTheDocument();
