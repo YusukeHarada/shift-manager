@@ -645,3 +645,152 @@ describe("選択肢から外した種別が保存されている日", () => {
     expect(cell.querySelector(".calendar-cell__empty").textContent).toBe("－");
   });
 });
+
+describe("分析ビュー", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2025, 10, 1));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  const mockSession = { user: { email: "test@shift.local" } };
+
+  const openAnalysis = async (shifts) => {
+    supabaseMock.fetchShifts.mockResolvedValue(shifts);
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("分析"));
+  };
+
+  it("分析タブで疲労度の推移が出る", async () => {
+    await openAnalysis({
+      "1": { base: "日", alpha: [] },
+      "2": { base: "夜", alpha: [] },
+      "3": { base: "明", alpha: [] },
+    });
+
+    expect(screen.getByText("疲労度の推移")).toBeInTheDocument();
+    // 11月は30日なので棒も30本
+    expect(document.querySelectorAll(".fatigue-chart__slot")).toHaveLength(30);
+  });
+
+  it("分析タブを開いたときだけ前月ぶんを取りにいく", async () => {
+    supabaseMock.fetchShifts.mockResolvedValue({ "1": { base: "日", alpha: [] } });
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+
+    expect(supabaseMock.fetchShifts).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText("分析"));
+    await waitFor(() => expect(supabaseMock.fetchShifts).toHaveBeenCalledTimes(2));
+    expect(supabaseMock.fetchShifts).toHaveBeenLastCalledWith(2025, 10);
+  });
+
+  it("月を行き来しても取得済みの前月は取り直さない", async () => {
+    supabaseMock.fetchShifts.mockResolvedValue({ "1": { base: "日", alpha: [] } });
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("分析"));
+    await waitFor(() => expect(supabaseMock.fetchShifts).toHaveBeenCalledWith(2025, 10));
+
+    // 10月へ移動（当月分だけ取得。前月の9月も1度だけ取得される）
+    fireEvent.click(screen.getByText("‹"));
+    await waitFor(() => expect(supabaseMock.fetchShifts).toHaveBeenCalledWith(2025, 9));
+    const afterBack = supabaseMock.fetchShifts.mock.calls.length;
+
+    // 11月へ戻ると当月分は取り直すが、キャッシュ済みの10月は取り直さない
+    fireEvent.click(screen.getByText("›"));
+    await waitFor(() => expect(supabaseMock.fetchShifts).toHaveBeenCalledTimes(afterBack + 1));
+    expect(supabaseMock.fetchShifts).toHaveBeenLastCalledWith(2025, 11);
+  });
+
+  it("前月の取得に失敗してもエラーを出さず分析を描画する", async () => {
+    supabaseMock.fetchShifts
+      .mockResolvedValueOnce({ "1": { base: "日", alpha: [] } })
+      .mockRejectedValueOnce(new Error("network"));
+
+    render(<App session={mockSession} />);
+    await waitFor(() => expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("分析"));
+
+    await waitFor(() => expect(document.querySelector(".fatigue-chart")).toBeInTheDocument());
+    expect(screen.queryByText("データの読み込みに失敗しました")).not.toBeInTheDocument();
+  });
+
+  it("連勤を警告として並べる", async () => {
+    const shifts = {};
+    for (let d = 1; d <= 6; d++) shifts[String(d)] = { base: "日", alpha: [] };
+    await openAnalysis(shifts);
+
+    const warnings = [...document.querySelectorAll(".warning-item")].map(w => w.textContent);
+    expect(warnings.some(w => w.includes("1日から6連勤"))).toBe(true);
+  });
+
+  it("勤務間インターバル不足を警告する", async () => {
+    await openAnalysis({
+      "1": { base: "日", alpha: ["当"] },
+      "2": { base: "日", alpha: [] },
+    });
+
+    const warnings = [...document.querySelectorAll(".warning-item")].map(w => w.textContent);
+    expect(warnings.some(w => w.includes("1時間45分"))).toBe(true);
+  });
+
+  it("警告が無ければその旨を出す", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] }, "2": { base: "休", alpha: [] } });
+    expect(screen.getByText("連勤・勤務間インターバルの警告はありません")).toBeInTheDocument();
+  });
+
+  it("種別ごとの回数と割合を出す", async () => {
+    await openAnalysis({
+      "1": { base: "早", alpha: [] },
+      "2": { base: "早", alpha: [] },
+      "3": { base: "夜", alpha: [] },
+      "4": { base: "休", alpha: [] },
+    });
+
+    const rows = [...document.querySelectorAll(".count-row")].map(r => r.textContent);
+    expect(rows.some(r => r.includes("早番") && r.includes("50%"))).toBe(true);
+  });
+
+  it("稼働日数と拘束時間を出す", async () => {
+    await openAnalysis({
+      "1": { base: "日", alpha: [] },
+      "2": { base: "夜", alpha: [] },
+      "3": { base: "明", alpha: [] },
+    });
+
+    const tiles = [...document.querySelectorAll(".stat-tile")].map(t => t.textContent);
+    expect(tiles.some(t => t.includes("稼働日数") && t.includes("2"))).toBe(true);
+    // 日勤 8時間45分 + 夜勤 17時間 = 25時間45分 → 26時間
+    expect(tiles.some(t => t.includes("総拘束時間") && t.includes("26"))).toBe(true);
+  });
+
+  it("曜日別のヒートマップを出す", async () => {
+    // 2025年11月1日は土曜
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    expect(screen.getByText("曜日別の傾向")).toBeInTheDocument();
+    expect(document.querySelectorAll(".heatmap__cell").length).toBeGreaterThan(0);
+  });
+
+  it("シフトが1件も無い月はプレースホルダを出す", async () => {
+    await openAnalysis({});
+    expect(screen.getByText("シフトを入力すると分析が表示されます")).toBeInTheDocument();
+    expect(document.querySelector(".fatigue-chart")).toBeNull();
+  });
+
+  it("分析ビューでは月の内訳と入力ヒントを出さない", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    expect(document.querySelector(".summary-bar")).toBeNull();
+    expect(screen.queryByText("日付をタップしてシフトを入力できます")).not.toBeInTheDocument();
+  });
+
+  it("カレンダーに戻ると月の内訳が戻る", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    fireEvent.click(screen.getByText("カレンダー"));
+    expect(document.querySelector(".summary-bar")).toBeInTheDocument();
+  });
+});
