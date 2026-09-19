@@ -378,6 +378,42 @@ describe("analyzeMonth - 疲労度", () => {
   });
 });
 
+describe("analyzeMonth - 持ち越しの内訳", () => {
+  it("持ち越しは合計を超えない", () => {
+    const r = analyzeMonth(2025, 11, fromPattern(["日", "夜", "明", "休", "早", "遅"]), {});
+    r.fatigue.forEach(f => {
+      expect(f.carry).toBeLessThanOrEqual(f.index);
+      expect(f.carry).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  it("前月が無ければ初日に持ち越しは無い", () => {
+    const r = analyzeMonth(2025, 11, fromPattern(["日"]), {});
+    expect(r.fatigue[0].carry).toBe(0);
+    expect(r.fatigue[0].index).toBeGreaterThan(0);
+  });
+
+  it("勤務した日は持ち越しに上乗せされる", () => {
+    const r = analyzeMonth(2025, 11, fromPattern(["日", "日", "日"]), {});
+    // 2日目以降は前日ぶんの持ち越しがあり、そのうえで当日ぶんを積む
+    expect(r.fatigue[1].carry).toBeGreaterThan(0);
+    expect(r.fatigue[1].carry).toBeLessThan(r.fatigue[1].index);
+  });
+
+  it("休みの日は積まないので棒すべてが持ち越しになる", () => {
+    const r = analyzeMonth(2025, 11, fromPattern(["夜", "夜", "休"]), {});
+    const rest = r.fatigue[2];
+    expect(rest.carry).toBe(rest.index);
+  });
+
+  it("前月末の勤務は当月初日の持ち越しに乗る", () => {
+    const prev = {};
+    for (let d = 25; d <= 30; d++) prev[String(d)] = entry("日");
+    const r = analyzeMonth(2025, 11, fromPattern(["休"]), prev);
+    expect(r.fatigue[0].carry).toBeGreaterThan(0);
+  });
+});
+
 describe("analyzeMonth - 警告", () => {
   it("4連勤では連勤の警告を出さない", () => {
     const r = analyzeMonth(2025, 11, fromPattern(["日", "日", "日", "日", "休"]), {});

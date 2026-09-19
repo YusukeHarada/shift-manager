@@ -828,6 +828,75 @@ describe("分析ビュー", () => {
     expect(document.querySelector(".fatigue-now__forecast")).toBeNull();
   });
 
+  it("当月なら今日の棒にリングが付き、初期選択も今日になる", async () => {
+    // システム時刻は 2025年11月1日
+    await openAnalysis({
+      "1": { base: "日", alpha: [] },
+      "2": { base: "夜", alpha: [] },
+    });
+
+    const today = document.querySelectorAll(".fatigue-chart__slot--today");
+    expect(today).toHaveLength(1);
+    expect(today[0]).toHaveClass("fatigue-chart__slot--selected");
+    expect(document.querySelector(".fatigue-chart__detail").textContent).toContain("11月1日");
+  });
+
+  it("棒をタップするとその日の内訳が出る", async () => {
+    await openAnalysis({
+      "1": { base: "日", alpha: [] },
+      "2": { base: "夜", alpha: ["残"] },
+    });
+
+    fireEvent.click(document.querySelectorAll(".fatigue-chart__slot")[1]);
+
+    const detail = document.querySelector(".fatigue-chart__detail").textContent;
+    expect(detail).toContain("11月2日");
+    expect(detail).toContain("夜勤");
+    expect(detail).toContain("残業");
+    expect(detail).toContain("前日までの持ち越し");
+  });
+
+  it("同じ棒をもう一度押すと内訳が閉じる", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    expect(document.querySelector(".fatigue-chart__detail")).toBeInTheDocument();
+
+    // 初期選択が1日なので、同じ棒を押すと解除される
+    fireEvent.click(document.querySelectorAll(".fatigue-chart__slot")[0]);
+    expect(document.querySelector(".fatigue-chart__detail")).toBeNull();
+  });
+
+  it("休みの日は積んでいないと出す", async () => {
+    await openAnalysis({
+      "1": { base: "夜", alpha: [] },
+      "2": { base: "休", alpha: [] },
+    });
+
+    fireEvent.click(document.querySelectorAll(".fatigue-chart__slot")[1]);
+    expect(document.querySelector(".fatigue-chart__detail").textContent).toContain("その日は積んでいません");
+  });
+
+  it("積み上げの境目は勤務した日にだけ出る", async () => {
+    await openAnalysis({
+      "1": { base: "夜", alpha: [] },
+      "2": { base: "休", alpha: [] },
+      "3": { base: "日", alpha: [] },
+    });
+
+    const slots = [...document.querySelectorAll(".fatigue-chart__slot")];
+    // 1日目は持ち越しが無いので境目なし、2日目は休みで積んでいないので境目なし
+    expect(slots[1].querySelector(".fatigue-chart__split")).toBeNull();
+    // 3日目は持ち越しのうえに日勤を積んでいる
+    expect(slots[2].querySelector(".fatigue-chart__split")).toBeInTheDocument();
+  });
+
+  it("別の月では今日のリングも内訳も出ない", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    fireEvent.click(screen.getByText("‹"));
+
+    await waitFor(() => expect(document.querySelector(".fatigue-chart__slot--today")).toBeNull());
+    expect(document.querySelector(".fatigue-chart__detail")).toBeNull();
+  });
+
   it("シフトが1件も無い月はプレースホルダを出す", async () => {
     await openAnalysis({});
     expect(screen.getByText("シフトを入力すると分析が表示されます")).toBeInTheDocument();
