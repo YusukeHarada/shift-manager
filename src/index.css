@@ -856,6 +856,31 @@ input {
   color: var(--color-text-muted);
 }
 
+/* 見方ボタン。セクションの邪魔をしないよう右端に小さく置く */
+.analysis-view__head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -12px;
+}
+
+.analysis-help-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-cell-bg);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.analysis-help-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
 /* 今の疲労度。グラフから今日の棒を探さずに読めるよう、値だけ大きく出す */
 .fatigue-now {
   padding: 14px 16px;
@@ -1536,6 +1561,98 @@ input {
 
 .work-table tr:last-child td {
   border-bottom: none;
+}
+
+/* 分析の見方モーダル。読み物なので本文の行間を広めに取る */
+.help-block {
+  margin-bottom: 20px;
+}
+
+.help-text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.help-text--muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.help-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.help-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* 11種類あるので2列に畳む。1列に並べるとモーダルが表だけで埋まる */
+.help-loads {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 14px;
+  margin-bottom: 10px;
+}
+
+.help-load {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-xs);
+}
+
+.help-load__label {
+  font-weight: 600;
+  color: var(--sc);
+  color: light-dark(var(--sc), var(--scd));
+}
+
+.help-load__value {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.help-list {
+  margin: 0;
+}
+
+.help-list__item + .help-list__item {
+  margin-top: 12px;
+}
+
+.help-list__term {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.help-list__desc {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.help-notes {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: var(--text-xs);
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.help-notes li + li {
+  margin-top: 6px;
 }
 
 .modal-close-btn {

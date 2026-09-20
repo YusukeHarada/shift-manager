@@ -29,7 +29,7 @@ src/
 ├── __mocks__/      # vitest 用モック（supabase.js / ical.js）
 └── test/
     ├── setup.js           # @testing-library/jest-dom のセットアップ
-    ├── App.test.jsx       # UI テスト 77 件
+    ├── App.test.jsx       # UI テスト 80 件
     ├── analysis.test.js   # 集計・疲労度の単体テスト 75 件
     ├── Login.test.jsx     # ログイン画面 7 件
     ├── colors.test.js     # シフト色のコントラスト検証 31 件
@@ -222,6 +222,12 @@ UNIQUE(year, month, day)
 - **`button` の `min-width: 44px` を `unset` で外す。** 30本並ぶと1本あたり10px前後しか取れない。タップ領域は棒の全高（96px）で確保している
 - **持ち越しとの境目（`.fatigue-chart__split`）は棒の外側に置く。** 棒には水準ごとの `opacity` が掛かっているため、棒の内側に線を引くと一緒に薄まって沈む。スロットを `position: relative` にして、境目を絶対配置で重ねる
 - **今日は `--color-text-muted` の内向きリング、選択中は `--color-primary` の外向きリング。** カレンダーのセルと違って棒は10px幅しかなく内外の形の差が出にくいので、濃さでも差をつけている
+
+### 見方モーダル（AnalysisHelpModal）
+
+分析タブ右上の「見方」で開く。**重みの一覧は `FATIGUE_LOAD` / `FATIGUE_ALPHA` を import して描画する。** 説明文に数値を書き写すと、モデルを変えたときに説明だけ古くなるため。しきい値の表記も `FATIGUE_MID` / `FATIGUE_HIGH` から組み立てている。
+
+水準のスウォッチはグラフの凡例（`.fatigue-chart__key--*`）を使い回す。ここで別の見た目を作ると、説明とグラフで色が食い違う。
 
 ### 分析ビューの配色
 

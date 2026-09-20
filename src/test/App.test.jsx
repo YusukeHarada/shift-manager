@@ -720,6 +720,44 @@ describe("分析ビュー", () => {
     expect(screen.queryByText("データの読み込みに失敗しました")).not.toBeInTheDocument();
   });
 
+  it("見方ボタンでヘルプが開き、閉じるで消える", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+
+    expect(screen.queryByTestId("analysis-help")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("見方"));
+    expect(screen.getByTestId("analysis-help")).toBeInTheDocument();
+    expect(screen.getByText("分析の見方")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("閉じる"));
+    expect(screen.queryByTestId("analysis-help")).not.toBeInTheDocument();
+  });
+
+  it("ヘルプに疲労度の水準としきい値が出る", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    fireEvent.click(screen.getByText("見方"));
+
+    const help = screen.getByTestId("analysis-help");
+    expect(help).toHaveTextContent("ゆとり 〜39");
+    expect(help).toHaveTextContent("注意 40〜69");
+    expect(help).toHaveTextContent("要休養 70〜");
+  });
+
+  it("ヘルプの重み表は analysis.js の値をそのまま出す", async () => {
+    await openAnalysis({ "1": { base: "日", alpha: [] } });
+    fireEvent.click(screen.getByText("見方"));
+
+    const rows = [...screen.getByTestId("analysis-help").querySelectorAll(".help-load")]
+      .map(el => el.textContent);
+    // 重い順に並ぶ。夜勤が先頭、休みが最後
+    expect(rows[0]).toContain("夜勤");
+    expect(rows[0]).toContain("+3.0");
+    expect(rows[rows.length - 1]).toContain("休み");
+    expect(rows[rows.length - 1]).toContain("-1.0");
+    expect(rows.some(r => r.includes("当直") && r.includes("+1.0"))).toBe(true);
+    expect(rows.some(r => r.includes("AM休") && r.includes("-0.4"))).toBe(true);
+  });
+
   it("連勤を警告として並べる", async () => {
     const shifts = {};
     for (let d = 1; d <= 6; d++) shifts[String(d)] = { base: "日", alpha: [] };
