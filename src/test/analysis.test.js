@@ -322,6 +322,26 @@ describe("analyzeMonth - 集計", () => {
 });
 
 describe("analyzeMonth - 疲労度", () => {
+  it("明け休みは積みも回復もしない", () => {
+    const r = analyzeMonth(2025, 11, fromPattern(["夜", "明"]), {});
+    // 明の日は減衰した持ち越しだけが残る（その日の勤務ぶんは 0）
+    expect(r.fatigue[1].carry).toBe(r.fatigue[1].index);
+    expect(r.fatigue[1].index).toBeLessThan(r.fatigue[0].index);
+  });
+
+  it("休みは明け休みより下げる", () => {
+    const withOff = analyzeMonth(2025, 11, fromPattern(["夜", "休"]), {}).fatigue[1].index;
+    const withMorning = analyzeMonth(2025, 11, fromPattern(["夜", "明"]), {}).fatigue[1].index;
+    expect(withOff).toBeLessThan(withMorning);
+  });
+
+  it("夜勤と明け休みだけが続くと要休養に達する", () => {
+    const pattern = [];
+    for (let i = 0; i < 15; i++) pattern.push("夜", "明");
+    const r = analyzeMonth(2025, 11, fromPattern(pattern), {});
+    expect(r.fatigue.some(f => f.level === "high")).toBe(true);
+  });
+
   it("休みが続けば0で下げ止まる", () => {
     const r = analyzeMonth(2025, 11, fillMonth("休"), {});
     expect(r.fatigue.every(f => f.index === 0)).toBe(true);
