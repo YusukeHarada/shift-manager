@@ -2,7 +2,15 @@ import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { supabase, fetchShifts, saveShift } from "./supabase";
 import { exportToICal } from "./ical";
 import { BASE_SHIFTS, ALPHA_TYPES } from "./shifts";
-import { analyzeMonth, getFatigueOutlook, formatMinutes, FATIGUE_MID, FATIGUE_HIGH } from "./analysis";
+import {
+  analyzeMonth,
+  getFatigueOutlook,
+  formatMinutes,
+  FATIGUE_LOAD,
+  FATIGUE_ALPHA,
+  FATIGUE_MID,
+  FATIGUE_HIGH,
+} from "./analysis";
 
 // シフト種別の定義は analysis.js と共有するため shifts.js に置いている。
 // 既存の import 元を変えずに済むよう、ここから再 export する
@@ -96,6 +104,16 @@ function IconClock() {
     <svg {...ICON_PROPS}>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3.5 2" />
+    </svg>
+  );
+}
+
+function IconHelp() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9.3a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.4" />
+      <path d="M12 17h.01" />
     </svg>
   );
 }
@@ -893,6 +911,110 @@ function WeekdayHeatmap({ weekday, weekStart }) {
   );
 }
 
+// 分析タブの読み方。疲労度は「シフトから計算した目安」であることが伝わらないと
+// 体調の実測値と誤解されるため、数字の意味から先に書く
+const HELP_VIEW_ITEMS = [
+  ["今の疲労度", "今日の値と、このあとどこまで上がるか。今月を見ているときだけ出ます"],
+  ["疲労度の推移", "1日1本の棒。下が前日までの持ち越し、上がその日の勤務ぶん。棒をタップすると内訳が出ます"],
+  ["気をつけたい日", "5連勤以上・前日から11時間未満・当直明けの勤務を拾います"],
+  ["今月の勤務", "稼働日数や拘束時間。明け休みは勤務日に数えません"],
+  ["シフト種別の内訳", "％は入力済みの日数に対する割合。オプションは1日に複数付くので合計が100%を超えることがあります"],
+  ["曜日別の傾向", "濃さは同じ行の中での多さ。行をまたいだ濃さの比較はできません"],
+];
+
+const HELP_CAUTIONS = [
+  "未入力の日があると連勤が途切れた扱いになり、実態より低く出ます",
+  "疲労度は100が上限です",
+  "先読みは今月内だけ。月末に近いほど見える範囲が短くなります",
+];
+
+function formatLoad(value) {
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
+}
+
+function AnalysisHelpModal({ open, onClose }) {
+  if (!open) return null;
+
+  // 重みは analysis.js を直接引く。ここに数値を書き写すと、モデルを変えたときに
+  // 説明だけ古くなる
+  const loadRows = [
+    ...BASE_SHIFTS.filter(s => FATIGUE_LOAD[s.key] !== undefined)
+      .map(s => ({ info: s, load: FATIGUE_LOAD[s.key] })),
+    ...ALPHA_TYPES.filter(a => FATIGUE_ALPHA[a.key] !== undefined)
+      .map(a => ({ info: a, load: FATIGUE_ALPHA[a.key] })),
+  ].sort((a, b) => b.load - a.load);
+
+  return (
+    <div className="modal-overlay modal-overlay--center" onClick={onClose}>
+      <div
+        data-testid="analysis-help"
+        className="modal-sheet modal-sheet--dialog"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="modal-title">分析の見方</div>
+
+        <div className="help-block">
+          <div className="modal-section-label">疲労度の数字</div>
+          <p className="help-text">
+            シフト表から計算した負担の目安です（体調の実測ではありません）。
+            前日の疲れの一部が翌日に残り、そこにその日の勤務の重さが積み上がります。
+          </p>
+          <div className="help-levels">
+            <span className="help-level">
+              <span className="fatigue-chart__key fatigue-chart__key--low" />
+              ゆとり 〜{FATIGUE_MID - 1}
+            </span>
+            <span className="help-level">
+              <span className="fatigue-chart__key fatigue-chart__key--mid" />
+              注意 {FATIGUE_MID}〜{FATIGUE_HIGH - 1}
+            </span>
+            <span className="help-level">
+              <span className="fatigue-chart__key fatigue-chart__key--high" />
+              要休養 {FATIGUE_HIGH}〜
+            </span>
+          </div>
+        </div>
+
+        <div className="help-block">
+          <div className="modal-section-label">勤務の重さ</div>
+          <div className="help-loads">
+            {loadRows.map(row => (
+              <span key={row.info.key} className="help-load" style={colorVars(row.info)}>
+                <span className="help-load__label">{row.info.label}</span>
+                <span className="help-load__value">{formatLoad(row.load)}</span>
+              </span>
+            ))}
+          </div>
+          <p className="help-text help-text--muted">
+            5連勤目以降・前日から11時間未満・当直明けの勤務は、さらに加点されます。
+          </p>
+        </div>
+
+        <div className="help-block">
+          <div className="modal-section-label">それぞれの見方</div>
+          <dl className="help-list">
+            {HELP_VIEW_ITEMS.map(([term, desc]) => (
+              <div key={term} className="help-list__item">
+                <dt className="help-list__term">{term}</dt>
+                <dd className="help-list__desc">{desc}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="help-block">
+          <div className="modal-section-label">読むときの注意</div>
+          <ul className="help-notes">
+            {HELP_CAUTIONS.map(text => <li key={text}>{text}</li>)}
+          </ul>
+        </div>
+
+        <button className="modal-close-btn" onClick={onClose}>閉じる</button>
+      </div>
+    </div>
+  );
+}
+
 function AnalysisSection({ title, note, children }) {
   return (
     <section className="analysis-section">
@@ -906,6 +1028,7 @@ function AnalysisSection({ title, note, children }) {
 }
 
 function AnalysisView({ year, month, shifts, prevShifts, weekStart, todayDay }) {
+  const [showHelp, setShowHelp] = useState(false);
   const result = useMemo(
     () => analyzeMonth(year, month, shifts, prevShifts),
     [year, month, shifts, prevShifts]
@@ -921,6 +1044,17 @@ function AnalysisView({ year, month, shifts, prevShifts, weekStart, todayDay }) 
 
   return (
     <div className="analysis-view">
+      <div className="analysis-view__head">
+        <button
+          data-action="analysis-help"
+          className="analysis-help-btn"
+          onClick={() => setShowHelp(true)}
+        >
+          <IconHelp />
+          見方
+        </button>
+      </div>
+
       {outlook && (
         <AnalysisSection title="今の疲労度">
           <FatigueNow outlook={outlook} month={month} />
@@ -957,6 +1091,8 @@ function AnalysisView({ year, month, shifts, prevShifts, weekStart, todayDay }) 
       <AnalysisSection title="曜日別の傾向">
         <WeekdayHeatmap weekday={result.weekday} weekStart={weekStart} />
       </AnalysisSection>
+
+      <AnalysisHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }
